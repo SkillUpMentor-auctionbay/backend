@@ -2,6 +2,7 @@
 node_modules
 
 /generated/prisma
+/dist
 prisma/prisma.md
 
 .env*
