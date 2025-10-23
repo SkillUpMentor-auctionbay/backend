@@ -1,2 +1,7 @@
 /backend
 node_modules
+
+/generated/prisma
+prisma/prisma.md
+
+.env*
