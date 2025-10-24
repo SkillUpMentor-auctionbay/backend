@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,19 +7,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum AuctionStatus {
-  ACTIVE
-  ENDED
-  CANCELLED
-}
-
 model User {
-  id        String   @id @default(cuid())
-  username  String   @unique
-  password  String   // Will store hashed passwords
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  id              String    @id @default(cuid())
+  username        String    @unique
+  password        String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
   auctionsCreated Auction[]
   bids            Bid[]
 
@@ -41,9 +31,8 @@ model Auction {
   sellerId      String
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
-
-  seller   User     @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-  bids     Bid[]
+  seller        User          @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  bids          Bid[]
 
   @@map("auctions")
 }
@@ -54,10 +43,15 @@ model Bid {
   auctionId String
   bidderId  String
   createdAt DateTime @default(now())
-
-  auction Auction @relation(fields: [auctionId], references: [id], onDelete: Cascade)
-  bidder  User    @relation(fields: [bidderId], references: [id], onDelete: Cascade)
+  auction   Auction  @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+  bidder    User     @relation(fields: [bidderId], references: [id], onDelete: Cascade)
 
   @@unique([auctionId, bidderId])
   @@map("bids")
+}
+
+enum AuctionStatus {
+  ACTIVE
+  ENDED
+  CANCELLED
 }

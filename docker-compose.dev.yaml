@@ -22,11 +22,13 @@ services:
     build: .
     container_name: backend
     restart: unless-stopped
+    env_file:
+      - .env
     environment:
       DATABASE_URL: ${DATABASE_URL}
       NODE_ENV: development
     ports:
-      - "3000:3000"
+      - "8080:8080"
     depends_on:
       postgres:
         condition: service_healthy
