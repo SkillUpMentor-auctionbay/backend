@@ -4,11 +4,18 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { FileUploadService } from '../common/services/file-upload.service';
+import { LoggingService } from '../common/services/logging.service';
 import * as bcrypt from 'bcryptjs';
+import * as fs from 'fs';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private fileUploadService: FileUploadService,
+    private loggingService: LoggingService,
+  ) {}
 
   async findById(id: string) {
     const user = await this.prisma.user.findUnique({
@@ -215,5 +222,96 @@ export class UsersService {
       message: 'Token version incremented successfully',
       newTokenVersion,
     };
+  }
+
+  async updateProfilePicture(userId: string, file: Express.Multer.File) {
+    // Validate input parameters
+    if (!userId || typeof userId !== 'string') {
+      throw new BadRequestException('Invalid user ID provided');
+    }
+
+    if (!file || !file.buffer || !file.originalname) {
+      throw new BadRequestException('Invalid file provided');
+    }
+
+    let savedFileName: string | null = null;
+
+    try {
+      // Save the profile picture and get the URL
+      const profilePictureUrl = await this.fileUploadService.saveProfilePicture(
+        userId,
+        file,
+      );
+
+      // Extract filename from URL for cleanup
+      const urlParts = profilePictureUrl.split('/');
+      savedFileName = urlParts[urlParts.length - 1];
+
+      // Update user's profile picture URL in database
+      const updatedUser = await this.updateUser(userId, {
+        profilePictureUrl,
+      });
+
+      // Clean up old profile pictures after successful database update
+      await this.fileUploadService.cleanupOldProfilePictures(userId, savedFileName);
+
+      return {
+        message: 'Profile picture updated successfully',
+        profilePictureUrl,
+        user: updatedUser,
+      };
+
+    } catch (error) {
+      // If database update failed, clean up the newly saved file
+      if (savedFileName) {
+        try {
+          const filePath = `./uploads/profile-pictures/${savedFileName}`;
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+        } catch (cleanupError) {
+          // Log but don't throw cleanup errors
+          console.error('Failed to cleanup file after database error:', cleanupError);
+        }
+      }
+
+      // Re-throw the original error
+      throw error;
+    }
+  }
+
+  async removeProfilePicture(userId: string) {
+    // Validate input parameters
+    if (!userId || typeof userId !== 'string') {
+      throw new BadRequestException('Invalid user ID provided');
+    }
+
+    try {
+      // Delete the profile picture file
+      await this.fileUploadService.deleteProfilePicture(userId);
+
+      // Update user's profile picture URL in database to null
+      const updatedUser = await this.updateUser(userId, {
+        profilePictureUrl: null,
+      });
+
+      return {
+        message: 'Profile picture removed successfully',
+        user: updatedUser,
+      };
+
+    } catch (error) {
+      this.loggingService.logError('Failed to remove profile picture', error, {
+        userId,
+      });
+
+      // If it's a BadRequestException, re-throw it as-is
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+
+      // For other errors, wrap them in a BadRequestException
+      throw new BadRequestException('Failed to remove profile picture');
+    }
   }
 }

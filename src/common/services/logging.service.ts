@@ -10,6 +10,21 @@ export interface LogContext {
   url?: string;
   statusCode?: number;
   duration?: number;
+  // File upload context
+  fileName?: string;
+  originalFilename?: string;
+  sanitizedFilename?: string;
+  fileSize?: number;
+  mimeType?: string;
+  fileMimeType?: string;
+  allowedMimeTypes?: string[];
+  maxSize?: number;
+  fileExtension?: string;
+  allowedExtensions?: string[];
+  filePath?: string;
+  directory?: string;
+  error?: string;
+  message?: string;
 }
 
 export interface SecurityLogContext extends LogContext {
