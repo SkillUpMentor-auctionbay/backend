@@ -1,19 +1,15 @@
-import { IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsNotEmpty, IsString, MinLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { AuthResponseDto } from './auth-response.dto';
 
 export class SignupDto {
   @ApiProperty({
-    description: 'The username of the user (3-50 characters)',
+    description: 'The username of the user',
     example: 'johndoe',
     type: String,
-    minLength: 3,
-    maxLength: 50,
   })
-  @IsString()
-  @IsNotEmpty()
-  @MinLength(3)
-  @MaxLength(50)
+  @IsString({ message: 'Username must be a string' })
+  @IsNotEmpty({ message: 'Username is required' })
   username: string;
 
   @ApiProperty({
@@ -22,9 +18,9 @@ export class SignupDto {
     type: String,
     minLength: 6,
   })
-  @IsString()
-  @IsNotEmpty()
-  @MinLength(6)
+  @IsString({ message: 'Password must be a string' })
+  @IsNotEmpty({ message: 'Password is required' })
+  @MinLength(6, { message: 'Password must be at least 6 characters long' })
   password: string;
 }
 

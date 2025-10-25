@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ConflictException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoggingService } from '../common/services/logging.service';
@@ -17,8 +21,8 @@ export class AuthService {
       where: { username },
     });
 
-    if (user && await bcrypt.compare(password, user.password)) {
-      const { password, ...result } = user;
+    if (user && (await bcrypt.compare(password, user.password))) {
+      const { password: _, ...result } = user;
       return result;
     }
     return null;
@@ -64,9 +68,12 @@ export class AuthService {
     });
 
     if (existingUser) {
-      this.loggingService.logWarning('Registration failed - username already exists', {
-        username: signupDto.username,
-      });
+      this.loggingService.logWarning(
+        'Registration failed - username already exists',
+        {
+          username: signupDto.username,
+        },
+      );
       throw new ConflictException('Username already exists');
     }
 

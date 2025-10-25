@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './prisma/prisma.module';
-import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { LoggingService } from './common/services/logging.service';
@@ -15,16 +14,11 @@ import { ValidationPipe } from './common/pipes/validation.pipe';
       envFilePath: '.env',
     }),
     PrismaModule,
-    DatabaseModule,
     AuthModule,
     UsersModule,
   ],
   controllers: [],
-  providers: [
-    LoggingService,
-    HttpExceptionFilter,
-    ValidationPipe,
-  ],
+  providers: [LoggingService, HttpExceptionFilter, ValidationPipe],
   exports: [LoggingService],
 })
 export class AppModule {}

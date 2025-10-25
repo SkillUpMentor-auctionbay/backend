@@ -1,8 +1,16 @@
-import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+} from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+export class PrismaService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
   private readonly logger = new Logger(PrismaService.name);
 
   constructor() {
@@ -33,7 +41,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       await this.$connect();
       this.logger.log('Database connection established successfully');
 
-      // Set up event listeners for logging
       this.$on('query', (e) => {
         this.logger.debug(`Query: ${e.query}`);
         this.logger.debug(`Params: ${e.params}`);
@@ -51,7 +58,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       this.$on('warn', (e) => {
         this.logger.warn(`Database warning: ${e.message}`);
       });
-
     } catch (error) {
       this.logger.error('Failed to connect to database', error);
       throw error;
@@ -67,9 +73,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     }
   }
 
-  /**
-   * Health check method to verify database connectivity
-   */
   async healthCheck(): Promise<boolean> {
     try {
       await this.$queryRaw`SELECT 1`;
@@ -80,9 +83,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     }
   }
 
-  /**
-   * Graceful shutdown method for use in application shutdown hooks
-   */
   async shutdown(): Promise<void> {
     this.logger.log('Initiating graceful shutdown of database connection...');
     await this.onModuleDestroy();

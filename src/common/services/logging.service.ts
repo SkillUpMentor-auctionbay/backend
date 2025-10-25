@@ -37,11 +37,13 @@ export class LoggingService {
       level: 'error',
       message: message || 'Error occurred',
       timestamp: new Date().toISOString(),
-      error: error ? {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-      } : undefined,
+      error: error
+        ? {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+          }
+        : undefined,
       context: context || {},
     };
 
@@ -70,8 +72,11 @@ export class LoggingService {
     this.logger.debug(JSON.stringify(logEntry));
   }
 
-  // Security event logging
-  logSecurityEvent(event: string, success: boolean, context?: SecurityLogContext) {
+  logSecurityEvent(
+    event: string,
+    success: boolean,
+    context?: SecurityLogContext,
+  ) {
     const securityContext = {
       event: event || 'UNKNOWN_EVENT',
       success,
@@ -92,7 +97,6 @@ export class LoggingService {
     }
   }
 
-  // Authentication events
   logLoginAttempt(username: string, success: boolean, context?: LogContext) {
     this.logSecurityEvent('LOGIN_ATTEMPT', success, {
       username,
@@ -123,7 +127,6 @@ export class LoggingService {
     });
   }
 
-  // Request/Response logging
   logRequest(context: LogContext) {
     this.logInfo('HTTP Request', context);
   }
@@ -132,8 +135,12 @@ export class LoggingService {
     this.logInfo('HTTP Response', context);
   }
 
-  // Database operations
-  logDatabaseOperation(operation: string, table: string, success: boolean, context?: LogContext) {
+  logDatabaseOperation(
+    operation: string,
+    table: string,
+    success: boolean,
+    context?: LogContext,
+  ) {
     const message = `Database ${operation || 'UNKNOWN_OPERATION'} on ${table || 'UNKNOWN_TABLE'} - ${success ? 'SUCCESS' : 'FAILURE'}`;
 
     if (success) {

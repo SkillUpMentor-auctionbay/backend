@@ -8,8 +8,8 @@ export class LoginDto {
     example: 'johndoe',
     type: String,
   })
-  @IsString()
-  @IsNotEmpty()
+  @IsString({ message: 'Username must be a string' })
+  @IsNotEmpty({ message: 'Username is required' })
   username: string;
 
   @ApiProperty({
@@ -17,8 +17,8 @@ export class LoginDto {
     example: 'password123',
     type: String,
   })
-  @IsString()
-  @IsNotEmpty()
+  @IsString({ message: 'Password must be a string' })
+  @IsNotEmpty({ message: 'Password is required' })
   password: string;
 }
 
