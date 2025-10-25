@@ -11,30 +11,37 @@ export class AuthController {
 
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @ApiBody({ type: LoginDto, description: 'Login credentials' })
+  @ApiBody({
+    type: LoginDto,
+    description: 'Login credentials (email + password)',
+  })
   @ApiResponse({
     status: 200,
     description: 'User successfully logged in',
-    type: LoginResponseDto
+    type: LoginResponseDto,
   })
   @ApiResponse({
     status: 401,
-    description: 'Invalid credentials'
+    description: 'Invalid credentials',
   })
   async login(@Body() loginDto: LoginDto): Promise<LoginResponseDto> {
     return this.authService.login(loginDto);
   }
 
   @Post('signup')
-  @ApiBody({ type: SignupDto, description: 'User registration data' })
+  @ApiBody({
+    type: SignupDto,
+    description:
+      'User registration data (name, surname, email, password, optional profile picture)',
+  })
   @ApiResponse({
     status: 201,
     description: 'User successfully registered',
-    type: SignupResponseDto
+    type: SignupResponseDto,
   })
   @ApiResponse({
     status: 400,
-    description: 'Bad request - validation error or user already exists'
+    description: 'Bad request - validation error or user already exists',
   })
   async signUp(@Body() signUpDto: SignupDto): Promise<SignupResponseDto> {
     return this.authService.signUp(signUpDto);

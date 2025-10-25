@@ -9,11 +9,33 @@ export class UserDto {
   id: string;
 
   @ApiProperty({
-    description: 'The username of the user',
-    example: 'johndoe',
+    description: 'The first name of the user',
+    example: 'John',
     type: String,
   })
-  username: string;
+  name: string;
+
+  @ApiProperty({
+    description: 'The surname of the user',
+    example: 'Doe',
+    type: String,
+  })
+  surname: string;
+
+  @ApiProperty({
+    description: 'The email address of the user',
+    example: 'john.doe@example.com',
+    type: String,
+  })
+  email: string;
+
+  @ApiProperty({
+    description: 'The profile picture URL of the user (optional)',
+    example: 'https://example.com/profile-pictures/john.jpg',
+    type: String,
+    required: false,
+  })
+  profilePictureUrl?: string;
 
   @ApiProperty({
     description: 'The timestamp when the user was created',
