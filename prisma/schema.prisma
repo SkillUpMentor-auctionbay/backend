@@ -24,18 +24,16 @@ model User {
 }
 
 model Auction {
-  id            String        @id @default(cuid())
+  id            String   @id @default(cuid())
   title         String
   description   String
   imageUrl      String?
-  startingPrice Decimal       @db.Decimal(10, 2)
-  currentBid    Decimal?      @db.Decimal(10, 2)
+  startingPrice Decimal  @db.Decimal(10, 2)
   endTime       DateTime
-  status        AuctionStatus @default(ACTIVE)
   sellerId      String
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  seller        User          @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  seller        User     @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   bids          Bid[]
 
   @@map("auctions")
@@ -54,8 +52,3 @@ model Bid {
   @@map("bids")
 }
 
-enum AuctionStatus {
-  ACTIVE
-  ENDED
-  CANCELLED
-}

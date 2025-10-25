@@ -1,0 +1,51 @@
+import { ApiProperty } from '@nestjs/swagger';
+import { IsString, IsDecimal, IsDate, IsOptional, IsNotEmpty } from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class CreateAuctionDto {
+  @ApiProperty({
+    description: 'The title of the auction',
+    example: 'Vintage Camera Collection',
+    type: String,
+  })
+  @IsString()
+  @IsNotEmpty()
+  title: string;
+
+  @ApiProperty({
+    description: 'The description of the auction',
+    example: 'A collection of vintage cameras from the 1970s in excellent condition',
+    type: String,
+  })
+  @IsString()
+  @IsNotEmpty()
+  description: string;
+
+  @ApiProperty({
+    description: 'The starting price of the auction',
+    example: 100.00,
+    type: Number,
+  })
+  @IsDecimal({ decimal_digits: '2' })
+  @Type(() => Number)
+  startingPrice: number;
+
+  @ApiProperty({
+    description: 'The end date and time of the auction',
+    example: '2024-12-31T23:59:59.000Z',
+    type: Date,
+  })
+  @IsDate()
+  @Type(() => Date)
+  endTime: Date;
+
+  @ApiProperty({
+    description: 'Optional image URL for the auction',
+    example: 'https://example.com/images/vintage-camera.jpg',
+    type: String,
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  imageUrl?: string;
+}

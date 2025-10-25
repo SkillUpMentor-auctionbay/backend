@@ -25,6 +25,25 @@ export interface LogContext {
   directory?: string;
   error?: string;
   message?: string;
+  // Auction context
+  auctionId?: string;
+  sellerId?: string;
+  bidderId?: string;
+  title?: string;
+  startingPrice?: number;
+  endTime?: Date;
+  amount?: number;
+  currentPrice?: number;
+  bidId?: string;
+  page?: number;
+  limit?: number;
+  search?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  sortBy?: string;
+  sortOrder?: string;
+  includeEnded?: boolean;
+  updates?: Record<string, any>;
 }
 
 export interface SecurityLogContext extends LogContext {

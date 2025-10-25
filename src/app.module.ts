@@ -5,6 +5,7 @@ import { join } from 'path';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { AuctionModule } from './auctions/auction.module';
 import { LoggingService } from './common/services/logging.service';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ValidationPipe } from './common/pipes/validation.pipe';
@@ -22,6 +23,7 @@ import { ValidationPipe } from './common/pipes/validation.pipe';
     PrismaModule,
     AuthModule,
     UsersModule,
+    AuctionModule,
   ],
   controllers: [],
   providers: [LoggingService, HttpExceptionFilter, ValidationPipe],
