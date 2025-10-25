@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
@@ -22,11 +22,20 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: { sub: string; email: string }) {
+  async validate(payload: {
+    sub: string;
+    email: string;
+    tokenVersion: number;
+  }) {
     const user = await this.usersService.findById(payload.sub);
 
     if (!user) {
-      throw new Error('User not found');
+      throw new UnauthorizedException('User not found');
+    }
+
+    // Check if the token version matches the user's current token version
+    if (user.tokenVersion !== payload.tokenVersion) {
+      throw new UnauthorizedException('Token has been invalidated');
     }
 
     return user;

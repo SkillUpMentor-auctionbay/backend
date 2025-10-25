@@ -50,4 +50,11 @@ export class UserDto {
     type: Date,
   })
   updatedAt: Date;
+
+  @ApiProperty({
+    description: 'The token version for logout invalidation',
+    example: 0,
+    type: Number,
+  })
+  tokenVersion: number;
 }

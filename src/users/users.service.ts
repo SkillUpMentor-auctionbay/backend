@@ -19,6 +19,7 @@ export class UsersService {
         surname: true,
         email: true,
         profile_picture_url: true,
+        tokenVersion: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -42,6 +43,7 @@ export class UsersService {
         surname: true,
         email: true,
         profile_picture_url: true,
+        tokenVersion: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -83,6 +85,7 @@ export class UsersService {
         surname: true,
         email: true,
         profile_picture_url: true,
+        tokenVersion: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -119,6 +122,7 @@ export class UsersService {
         surname: true,
         email: true,
         profile_picture_url: true,
+        tokenVersion: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -187,6 +191,29 @@ export class UsersService {
       ...user,
       profilePictureUrl: user.profile_picture_url,
       profile_picture_url: undefined,
+    };
+  }
+
+  async incrementTokenVersion(id: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      select: { tokenVersion: true },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const newTokenVersion = user.tokenVersion + 1;
+
+    await this.prisma.user.update({
+      where: { id },
+      data: { tokenVersion: newTokenVersion },
+    });
+
+    return {
+      message: 'Token version incremented successfully',
+      newTokenVersion,
     };
   }
 }

@@ -8,16 +8,17 @@ datasource db {
 }
 
 model User {
-  id                String    @id @default(cuid())
-  name              String
-  surname           String
-  email             String    @unique
-  password          String
+  id                  String    @id @default(cuid())
+  password            String
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  email               String    @unique
+  name                String
   profile_picture_url String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  auctionsCreated   Auction[]
-  bids              Bid[]
+  surname             String
+  tokenVersion        Int       @default(0)
+  auctionsCreated     Auction[]
+  bids                Bid[]
 
   @@map("users")
 }

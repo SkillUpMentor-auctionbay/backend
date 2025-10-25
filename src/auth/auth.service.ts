@@ -20,6 +20,7 @@ export class AuthService {
     const user = await this.usersService.findByEmailWithPassword(email);
 
     if (user && (await bcrypt.compare(password, user.password))) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { password: _, ...result } = user;
       return {
         ...result,
@@ -40,7 +41,12 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const payload = { email: user.email, sub: user.id };
+    const payload = {
+      email: user.email,
+      sub: user.id,
+      tokenVersion: user.tokenVersion,
+    };
+
     const access_token = this.jwtService.sign(payload);
 
     this.loggingService.logLoginAttempt(loginDto.email, true, {
@@ -57,6 +63,7 @@ export class AuthService {
         surname: user.surname,
         email: user.email,
         profilePictureUrl: user.profilePictureUrl,
+        tokenVersion: user.tokenVersion,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       },
@@ -110,6 +117,27 @@ export class AuthService {
     } catch (error) {
       this.loggingService.logError('Failed to create user', error, {
         username: signupDto.email,
+      });
+      throw error;
+    }
+  }
+
+  async logout(userId: string) {
+    this.loggingService.logInfo('User logging out', {
+      userId,
+    });
+
+    try {
+      await this.usersService.incrementTokenVersion(userId);
+
+      this.loggingService.logInfo('User logged out successfully', {
+        userId,
+      });
+
+      return { message: 'Logged out successfully' };
+    } catch (error) {
+      this.loggingService.logError('Failed to logout user', error, {
+        userId,
       });
       throw error;
     }
