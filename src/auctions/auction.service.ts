@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoggingService } from '../common/services/logging.service';
+import { FileUploadService } from '../common/services/file-upload.service';
 import { CreateAuctionDto } from './dto/create-auction.dto';
 import { UpdateAuctionDto } from './dto/update-auction.dto';
 import { PlaceBidDto } from './dto/place-bid.dto';
@@ -13,13 +14,12 @@ import { AuctionCardDto } from './dto/auction-card.dto';
 import { DetailedAuctionDto } from './dto/detailed-auction.dto';
 import { AuctionListResponseDto } from './dto/auction-list-response.dto';
 import { BidDto } from './dto/bid.dto';
+import { AuctionQueryDto, AuctionFilter } from './dto/auction-query.dto';
 import {
   calculateCurrentPrice,
   calculateAuctionStatus,
   getUserBidAmount,
-  AuctionStatus,
 } from './utils/auction-status.util';
-import { createSellerName } from './utils/user-mapping.util';
 import { BidsService } from './bids.service';
 
 @Injectable()
@@ -28,6 +28,7 @@ export class AuctionService {
     private prisma: PrismaService,
     private loggingService: LoggingService,
     private bidsService: BidsService,
+    private fileUploadService: FileUploadService,
   ) {}
 
   async createAuction(sellerId: string, createAuctionDto: CreateAuctionDto) {
@@ -147,88 +148,7 @@ export class AuctionService {
     }
   }
 
-    async getActiveAuctions(
-    page: number = 1,
-    limit: number = 10,
-    userId?: string,
-    search?: string,
-    minPrice?: number,
-    maxPrice?: number,
-    sortBy: string = 'endTime',
-    sortOrder: 'asc' | 'desc' = 'asc'
-  ): Promise<AuctionListResponseDto> {
-    const skip = (page - 1) * limit;
-
-    const where: any = {
-      endTime: { gt: new Date() },
-    };
-
-    if (search) {
-      where.OR = [
-        { title: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-      ];
-    }
-
-    const auctions = await this.prisma.auction.findMany({
-      where,
-      include: {
-        seller: { select: { name: true, surname: true } },
-        bids: {
-          select: { amount: true, bidderId: true },
-          orderBy: { amount: 'desc' },
-        },
-        _count: { select: { bids: true } },
-      },
-      orderBy: { [sortBy]: sortOrder },
-      skip,
-      take: limit,
-    });
-
-    let filteredAuctions = auctions;
-    if (minPrice !== undefined || maxPrice !== undefined) {
-      filteredAuctions = auctions.filter(auction => {
-        const currentPrice = calculateCurrentPrice(auction);
-        if (minPrice !== undefined && currentPrice < minPrice) return false;
-        if (maxPrice !== undefined && currentPrice > maxPrice) return false;
-        return true;
-      });
-    }
-
-    const total = await this.prisma.auction.count({ where });
-
-    const auctionCards = filteredAuctions.map(auction => {
-      const currentPrice = calculateCurrentPrice(auction);
-      const status = calculateAuctionStatus(auction, userId);
-      const myBid = userId ? getUserBidAmount(auction, userId) : undefined;
-
-      return {
-        id: auction.id,
-        title: auction.title,
-        currentPrice,
-        endTime: auction.endTime,
-        status,
-        myBid,
-        bidCount: auction._count.bids,
-        sellerName: createSellerName(auction.seller),
-      } as AuctionCardDto;
-    });
-
-    const finalTotal = (minPrice !== undefined || maxPrice !== undefined)
-      ? filteredAuctions.length
-      : total;
-
-    return {
-      auctions: auctionCards,
-      page,
-      limit,
-      total: finalTotal,
-      totalPages: Math.ceil(finalTotal / limit),
-      hasNext: page * limit < finalTotal,
-      hasPrevious: page > 1,
-    };
-  }
-
+    
   async getAuctionById(auctionId: string, userId?: string): Promise<DetailedAuctionDto> {
     const auction = await this.prisma.auction.findUnique({
       where: { id: auctionId },
@@ -297,191 +217,200 @@ export class AuctionService {
     };
   }
 
-  async getUserAuctions(
-    userId: string,
-    page: number = 1,
-    limit: number = 10,
-    includeEnded: boolean = false
+  
+  async placeBid(auctionId: string, bidderId: string, placeBidDto: PlaceBidDto): Promise<BidDto> {
+    return this.bidsService.placeBid(auctionId, bidderId, placeBidDto);
+  }
+
+  async deleteAuctionImage(auctionId: string, userId: string): Promise<void> {
+    const auction = await this.prisma.auction.findUnique({
+      where: { id: auctionId },
+    });
+
+    if (!auction) {
+      throw new NotFoundException('Auction not found');
+    }
+
+    if (auction.sellerId !== userId) {
+      throw new ForbiddenException('You can only delete images from your own auctions');
+    }
+
+    if (!auction.imageUrl) {
+      throw new BadRequestException('No image to delete');
+    }
+
+    this.loggingService.logInfo('Deleting auction image', {
+      auctionId,
+      userId,
+      imageUrl: auction.imageUrl,
+    });
+
+    try {
+      await this.fileUploadService.deleteAuctionImage(auction.imageUrl);
+
+      await this.prisma.auction.update({
+        where: { id: auctionId },
+        data: { imageUrl: null },
+      });
+
+      this.loggingService.logInfo('Auction image deleted successfully', {
+        auctionId,
+        userId,
+        imageUrl: auction.imageUrl,
+      });
+    } catch (error) {
+      this.loggingService.logError('Failed to delete auction image', error, {
+        auctionId,
+        userId,
+        imageUrl: auction.imageUrl,
+      });
+      throw error;
+    }
+  }
+
+  async getAuctions(
+    queryDto: AuctionQueryDto,
+    userId?: string
   ): Promise<AuctionListResponseDto> {
+    const {
+      filter,
+      page = 1,
+      limit = 100,
+    } = queryDto;
+
     const skip = (page - 1) * limit;
+    let auctionIds: string[] = [];
 
-    const where: any = { sellerId: userId };
+    switch (filter) {
+      case AuctionFilter.ALL:
+        break;
 
-    if (!includeEnded) {
-      where.endTime = { gt: new Date() };
+      case AuctionFilter.OWN:
+        if (!userId) {
+          throw new BadRequestException('User ID required for OWN filter');
+        }
+        auctionIds = await this.getOwnAuctionIds(userId);
+        break;
+
+      case AuctionFilter.BID:
+        if (!userId) {
+          throw new BadRequestException('User ID required for BID filter');
+        }
+        auctionIds = await this.getBiddedAuctionIds(userId);
+        break;
+
+      case AuctionFilter.WON:
+        if (!userId) {
+          throw new BadRequestException('User ID required for WON filter');
+        }
+        auctionIds = await this.getWonAuctionIds(userId);
+        break;
+    }
+
+    const where: any = filter === AuctionFilter.ALL ? {} : { id: { in: auctionIds } };
+    if (filter !== AuctionFilter.ALL && auctionIds.length === 0) {
+      return {
+        auctions: [],
+        pagination: {
+          page,
+          limit,
+          total: 0,
+          totalPages: 0,
+        },
+      };
     }
 
     const auctions = await this.prisma.auction.findMany({
       where,
-      include: {
-        seller: { select: { name: true, surname: true } },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        startingPrice: true,
+        imageUrl: true,
+        endTime: true,
+        sellerId: true,
         bids: {
           select: { amount: true, bidderId: true },
           orderBy: { amount: 'desc' },
+          take: 1,
         },
-        _count: { select: { bids: true } },
       },
-      orderBy: { endTime: 'asc' },
+      orderBy: { createdAt: 'desc' },
       skip,
       take: limit,
     });
 
     const total = await this.prisma.auction.count({ where });
 
-    const auctionCards = auctions.map(auction => {
+    const auctionCards = auctions.map((auction) => {
       const currentPrice = calculateCurrentPrice(auction);
       const status = calculateAuctionStatus(auction, userId);
 
       return {
         id: auction.id,
         title: auction.title,
+        startingPrice: Number(auction.startingPrice),
         currentPrice,
+        imageUrl: auction.imageUrl,
         endTime: auction.endTime,
         status,
-        bidCount: auction._count.bids,
-        sellerName: createSellerName(auction.seller),
+        sellerId: auction.sellerId,
       } as AuctionCardDto;
     });
 
     return {
       auctions: auctionCards,
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-      hasNext: page * limit < total,
-      hasPrevious: page > 1,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
     };
   }
 
-  async getUserBiddedAuctions(
-    userId: string,
-    page: number = 1,
-    limit: number = 10
-  ): Promise<AuctionListResponseDto> {
-    const skip = (page - 1) * limit;
-
-    // Get distinct auctions where user has bid
+  private async getOwnAuctionIds(userId: string): Promise<string[]> {
     const auctions = await this.prisma.auction.findMany({
+      where: { sellerId: userId },
+      select: { id: true },
+    });
+    return auctions.map(a => a.id);
+  }
+
+  private async getBiddedAuctionIds(userId: string): Promise<string[]> {
+    const userBids = await this.prisma.bid.findMany({
+      where: { bidderId: userId },
+      select: { auctionId: true },
+      distinct: ['auctionId'],
+    });
+    return userBids.map(bid => bid.auctionId);
+  }
+
+  private async getWonAuctionIds(userId: string): Promise<string[]> {
+    const now = new Date();
+
+    const userBidAuctions = await this.prisma.auction.findMany({
       where: {
+        endTime: { lte: now },
         bids: {
           some: { bidderId: userId },
         },
       },
       include: {
-        seller: { select: { name: true, surname: true } },
         bids: {
           select: { amount: true, bidderId: true },
           orderBy: { amount: 'desc' },
         },
-        _count: { select: { bids: true } },
-      },
-      orderBy: { endTime: 'asc' },
-      skip,
-      take: limit,
-      distinct: ['id'],
-    });
-
-    const total = await this.prisma.auction.count({
-      where: {
-        bids: {
-          some: { bidderId: userId },
-        },
       },
     });
 
-    const auctionCards = auctions.map(auction => {
-      const currentPrice = calculateCurrentPrice(auction);
-      const status = calculateAuctionStatus(auction, userId);
-      const myBid = getUserBidAmount(auction, userId);
-
-      return {
-        id: auction.id,
-        title: auction.title,
-        currentPrice,
-        endTime: auction.endTime,
-        status,
-        myBid,
-        bidCount: auction._count.bids,
-        sellerName: createSellerName(auction.seller),
-      } as AuctionCardDto;
-    });
-
-    return {
-      auctions: auctionCards,
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-      hasNext: page * limit < total,
-      hasPrevious: page > 1,
-    };
-  }
-
-  async getUserWonAuctions(
-    userId: string,
-    page: number = 1,
-    limit: number = 10
-  ): Promise<AuctionListResponseDto> {
-    const skip = (page - 1) * limit;
-
-    // Get auctions that have ended and where user has the highest bid
-    const auctions = await this.prisma.auction.findMany({
-      where: {
-        endTime: { lt: new Date() }, // Ended auctions
-        bids: {
-          some: { bidderId: userId },
-        },
-      },
-      include: {
-        seller: { select: { name: true, surname: true } },
-        bids: {
-          select: { amount: true, bidderId: true },
-          orderBy: { amount: 'desc' },
-        },
-        _count: { select: { bids: true } },
-      },
-      orderBy: { endTime: 'desc' },
-      skip,
-      take: limit,
-    });
-
-    // Filter to only include auctions where user won (has highest bid)
-    const wonAuctions = auctions.filter(auction => {
-      const highestBid = calculateCurrentPrice(auction);
-      const userBid = getUserBidAmount(auction, userId);
-      return userBid && userBid >= highestBid;
-    });
-
-    const total = wonAuctions.length;
-
-    const auctionCards = wonAuctions.map(auction => {
-      const currentPrice = calculateCurrentPrice(auction);
-
-      return {
-        id: auction.id,
-        title: auction.title,
-        currentPrice,
-        endTime: auction.endTime,
-        status: 'DONE' as AuctionStatus,
-        myBid: getUserBidAmount(auction, userId),
-        bidCount: auction._count.bids,
-        sellerName: createSellerName(auction.seller),
-      } as AuctionCardDto;
-    });
-
-    return {
-      auctions: auctionCards,
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-      hasNext: page * limit < total,
-      hasPrevious: page > 1,
-    };
-  }
-
-  async placeBid(auctionId: string, bidderId: string, placeBidDto: PlaceBidDto): Promise<BidDto> {
-    return this.bidsService.placeBid(auctionId, bidderId, placeBidDto);
+    return userBidAuctions
+      .filter(auction => {
+        const highestBid = calculateCurrentPrice(auction);
+        const userBid = getUserBidAmount(auction, userId);
+        return userBid && userBid >= highestBid;
+      })
+      .map(a => a.id);
   }
 }

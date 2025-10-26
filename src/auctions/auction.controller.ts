@@ -3,23 +3,30 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Request,
   Body,
   Query,
   Param,
   UseGuards,
-  ParseIntPipe,
-  DefaultValuePipe,
+  UseInterceptors,
+  UploadedFile,
+  NotFoundException,
+  ForbiddenException,
 } from '@nestjs/common';
-import { ApiTags, ApiResponse, ApiBearerAuth, ApiQuery, ApiParam } from '@nestjs/swagger';
+import { ApiTags, ApiResponse, ApiBearerAuth, ApiQuery, ApiParam, ApiConsumes } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { AuctionService } from './auction.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { LoggingService } from '../common/services/logging.service';
+import { FileUploadService } from '../common/services/file-upload.service';
 import { CreateAuctionDto } from './dto/create-auction.dto';
 import { UpdateAuctionDto } from './dto/update-auction.dto';
 import { PlaceBidDto } from './dto/place-bid.dto';
 import { DetailedAuctionDto } from './dto/detailed-auction.dto';
 import { AuctionListResponseDto } from './dto/auction-list-response.dto';
+import { AuctionQueryDto, AuctionFilter } from './dto/auction-query.dto';
+import { ImageUploadResponseDto } from './dto/image-upload.dto';
 
 @ApiTags('auctions')
 @Controller({ path: 'auctions', version: '1' })
@@ -27,10 +34,11 @@ export class AuctionController {
   constructor(
     private auctionService: AuctionService,
     private loggingService: LoggingService,
+    private fileUploadService: FileUploadService,
   ) {}
 
 
-  @Post('me/auctions')
+  @Post('me/auction')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT')
   @ApiResponse({
@@ -78,7 +86,136 @@ export class AuctionController {
   }
 
 
-  @Patch('me/auctions/:id')
+  @Post(':id/upload-image')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiParam({
+    name: 'id',
+    description: 'The unique identifier of auction to upload image for',
+    example: '507f1f77bcf86cd799439011',
+    type: String,
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Auction image uploaded successfully',
+    type: ImageUploadResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - Invalid file or file type',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - JWT token is missing or invalid',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - You can only upload images to your own auctions',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Not Found - Auction not found',
+  })
+  async uploadAuctionImage(
+    @Request() req,
+    @Param('id') auctionId: string,
+    @UploadedFile() file: Express.Multer.File
+  ) {
+    this.loggingService.logInfo('Auction image upload request', {
+      userId: req.user.id,
+      auctionId,
+      fileName: file?.originalname,
+      fileSize: file?.size,
+      mimeType: file?.mimetype,
+    });
+
+    try {
+      const auction = await this.auctionService.getAuctionById(auctionId, req.user.id);
+      if (!auction) {
+        throw new NotFoundException('Auction not found');
+      }
+
+      if (auction.seller.id !== req.user.id) {
+        throw new ForbiddenException('You can only upload images to your own auctions');
+      }
+
+      const imageUrl = await this.fileUploadService.saveAuctionImage(file);
+
+      return {
+        message: 'Image uploaded successfully',
+        imageUrl,
+      };
+    } catch (error) {
+      this.loggingService.logError('Auction image upload failed', error, {
+        userId: req.user.id,
+        auctionId,
+        fileName: file?.originalname,
+        fileSize: file?.size,
+      });
+      throw error;
+    }
+  }
+
+
+  @Delete(':id/delete-image')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT')
+  @ApiParam({
+    name: 'id',
+    description: 'The unique identifier of the auction',
+    example: '507f1f77bcf86cd799439011',
+    type: String,
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Auction image deleted successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Image deleted successfully' },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - JWT token is missing or invalid',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - You can only delete images from your own auctions',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Not Found - Auction not found',
+  })
+  async deleteAuctionImage(
+    @Request() req,
+    @Param('id') auctionId: string
+  ) {
+    this.loggingService.logInfo('Delete auction image request', {
+      userId: req.user.id,
+      auctionId,
+    });
+
+    try {
+      await this.auctionService.deleteAuctionImage(auctionId, req.user.id);
+
+      return {
+        message: 'Image deleted successfully',
+      };
+    } catch (error) {
+      this.loggingService.logError('Delete auction image failed', error, {
+        userId: req.user.id,
+        auctionId,
+      });
+      throw error;
+    }
+  }
+
+
+  @Patch('me/auction/:id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT')
   @ApiParam({
@@ -147,10 +284,22 @@ export class AuctionController {
 
 
   @Get()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT')
   @ApiResponse({
     status: 200,
-    description: 'Active auctions retrieved successfully',
+    description: 'Auctions retrieved successfully',
     type: AuctionListResponseDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - JWT token is missing or invalid',
+  })
+  @ApiQuery({
+    name: 'filter',
+    description: 'Filter auctions: OWN (your created auctions), BID (auctions you bid on), WON (auctions you won)',
+    required: false,
+    enum: AuctionFilter,
   })
   @ApiQuery({
     name: 'page',
@@ -166,87 +315,34 @@ export class AuctionController {
     example: 10,
     type: Number,
   })
-  @ApiQuery({
-    name: 'search',
-    description: 'Search term for title and description',
-    required: false,
-    example: 'camera',
-    type: String,
-  })
-  @ApiQuery({
-    name: 'minPrice',
-    description: 'Minimum price filter',
-    required: false,
-    example: 100,
-    type: Number,
-  })
-  @ApiQuery({
-    name: 'maxPrice',
-    description: 'Maximum price filter',
-    required: false,
-    example: 1000,
-    type: Number,
-  })
-  @ApiQuery({
-    name: 'sortBy',
-    description: 'Field to sort by',
-    required: false,
-    example: 'endTime',
-    type: String,
-  })
-  @ApiQuery({
-    name: 'sortOrder',
-    description: 'Sort order (asc or desc)',
-    required: false,
-    example: 'asc',
-    enum: ['asc', 'desc'],
-  })
-  async getActiveAuctions(
+  async getAuctions(
     @Request() req,
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
-    @Query('search') search?: string,
-    @Query('minPrice') minPrice?: number,
-    @Query('maxPrice') maxPrice?: number,
-    @Query('sortBy') sortBy: string = 'endTime',
-    @Query('sortOrder') sortOrder: 'asc' | 'desc' = 'asc'
+    @Query() queryDto: AuctionQueryDto,
   ): Promise<AuctionListResponseDto> {
     const userId = req.user?.id;
 
-    this.loggingService.logInfo('Get active auctions request', {
+    this.loggingService.logInfo('Get auctions request', {
       userId,
-      page,
-      limit,
-      search,
-      minPrice,
-      maxPrice,
-      sortBy,
-      sortOrder,
-    });
+      page: queryDto.page,
+      limit: queryDto.limit,
+    } as any);
 
     try {
-      return await this.auctionService.getActiveAuctions(
-        page,
-        limit,
-        userId,
-        search,
-        minPrice,
-        maxPrice,
-        sortBy,
-        sortOrder
-      );
+      return await this.auctionService.getAuctions(queryDto, userId);
     } catch (error) {
-      this.loggingService.logError('Get active auctions failed', error, {
+      this.loggingService.logError('Get auctions failed', error, {
         userId,
-        page,
-        limit,
-      });
+        page: queryDto.page,
+        limit: queryDto.limit,
+      } as any);
       throw error;
     }
   }
 
 
   @Get(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT')
   @ApiParam({
     name: 'id',
     description: 'The unique identifier of the auction',
@@ -261,6 +357,10 @@ export class AuctionController {
   @ApiResponse({
     status: 404,
     description: 'Not Found - Auction not found',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - JWT token is missing or invalid',
   })
   async getAuctionById(
     @Request() req,
@@ -279,178 +379,6 @@ export class AuctionController {
       this.loggingService.logError('Get auction details failed', error, {
         userId,
         auctionId,
-      });
-      throw error;
-    }
-  }
-
-
-  @Get('me/auctions')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT')
-  @ApiResponse({
-    status: 200,
-    description: 'User auctions retrieved successfully',
-    type: AuctionListResponseDto,
-  })
-  @ApiQuery({
-    name: 'page',
-    description: 'Page number for pagination',
-    required: false,
-    example: 1,
-    type: Number,
-  })
-  @ApiQuery({
-    name: 'limit',
-    description: 'Number of items per page',
-    required: false,
-    example: 10,
-    type: Number,
-  })
-  @ApiQuery({
-    name: 'includeEnded',
-    description: 'Include ended auctions in results',
-    required: false,
-    example: false,
-    type: Boolean,
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Unauthorized - JWT token is missing or invalid',
-  })
-  async getUserAuctions(
-    @Request() req,
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
-    @Query('includeEnded') includeEnded: boolean = false
-  ): Promise<AuctionListResponseDto> {
-    this.loggingService.logInfo('Get user auctions request', {
-      userId: req.user.id,
-      page,
-      limit,
-      includeEnded,
-    });
-
-    try {
-      return await this.auctionService.getUserAuctions(
-        req.user.id,
-        page,
-        limit,
-        includeEnded
-      );
-    } catch (error) {
-      this.loggingService.logError('Get user auctions failed', error, {
-        userId: req.user.id,
-        page,
-        limit,
-      });
-      throw error;
-    }
-  }
-
-
-  @Get('me/bids')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT')
-  @ApiResponse({
-    status: 200,
-    description: 'User bidded auctions retrieved successfully',
-    type: AuctionListResponseDto,
-  })
-  @ApiQuery({
-    name: 'page',
-    description: 'Page number for pagination',
-    required: false,
-    example: 1,
-    type: Number,
-  })
-  @ApiQuery({
-    name: 'limit',
-    description: 'Number of items per page',
-    required: false,
-    example: 10,
-    type: Number,
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Unauthorized - JWT token is missing or invalid',
-  })
-  async getUserBiddedAuctions(
-    @Request() req,
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number
-  ): Promise<AuctionListResponseDto> {
-    this.loggingService.logInfo('Get user bidded auctions request', {
-      userId: req.user.id,
-      page,
-      limit,
-    });
-
-    try {
-      return await this.auctionService.getUserBiddedAuctions(
-        req.user.id,
-        page,
-        limit
-      );
-    } catch (error) {
-      this.loggingService.logError('Get user bidded auctions failed', error, {
-        userId: req.user.id,
-        page,
-        limit,
-      });
-      throw error;
-    }
-  }
-
-
-  @Get('me/won-auctions')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT')
-  @ApiResponse({
-    status: 200,
-    description: 'User won auctions retrieved successfully',
-    type: AuctionListResponseDto,
-  })
-  @ApiQuery({
-    name: 'page',
-    description: 'Page number for pagination',
-    required: false,
-    example: 1,
-    type: Number,
-  })
-  @ApiQuery({
-    name: 'limit',
-    description: 'Number of items per page',
-    required: false,
-    example: 10,
-    type: Number,
-  })
-  @ApiResponse({
-    status: 401,
-    description: 'Unauthorized - JWT token is missing or invalid',
-  })
-  async getUserWonAuctions(
-    @Request() req,
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number
-  ): Promise<AuctionListResponseDto> {
-    this.loggingService.logInfo('Get user won auctions request', {
-      userId: req.user.id,
-      page,
-      limit,
-    });
-
-    try {
-      return await this.auctionService.getUserWonAuctions(
-        req.user.id,
-        page,
-        limit
-      );
-    } catch (error) {
-      this.loggingService.logError('Get user won auctions failed', error, {
-        userId: req.user.id,
-        page,
-        limit,
       });
       throw error;
     }

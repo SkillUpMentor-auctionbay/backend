@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsDecimal, IsDate, IsOptional, IsNotEmpty } from 'class-validator';
+import { IsString, IsDate, IsOptional, IsNotEmpty } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateAuctionDto {
@@ -26,7 +26,7 @@ export class CreateAuctionDto {
     example: 100.00,
     type: Number,
   })
-  @IsDecimal({ decimal_digits: '2' })
+  @IsNotEmpty()
   @Type(() => Number)
   startingPrice: number;
 

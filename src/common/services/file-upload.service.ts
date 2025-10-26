@@ -8,6 +8,7 @@ import { LoggingService, LogContext } from './logging.service';
 export class FileUploadService {
   private readonly uploadsDir = './uploads';
   private readonly profilePicturesDir = path.join(this.uploadsDir, 'profile-pictures');
+  private readonly auctionImagesDir = path.join(this.uploadsDir, 'auction-images');
 
   constructor(private loggingService: LoggingService) {
     this.ensureDirectoriesExist();
@@ -28,6 +29,13 @@ export class FileUploadService {
           directory: this.profilePicturesDir,
         } as LogContext);
       }
+
+      if (!fs.existsSync(this.auctionImagesDir)) {
+        fs.mkdirSync(this.auctionImagesDir, { recursive: true });
+        this.loggingService.logInfo('Created auction images directory', {
+          directory: this.auctionImagesDir,
+        } as LogContext);
+      }
     } catch (error) {
       this.loggingService.logError(
         'Failed to create upload directories',
@@ -35,20 +43,18 @@ export class FileUploadService {
         {
           uploadsDir: this.uploadsDir,
           profilePicturesDir: this.profilePicturesDir,
+          auctionImagesDir: this.auctionImagesDir,
         } as LogContext,
       );
       throw new BadRequestException('Failed to initialize upload directories');
     }
   }
 
-  /**
-   * Save profile picture for a user with transaction safety
-   */
+
   async saveProfilePicture(
     userId: string,
     file: Express.Multer.File,
   ): Promise<string> {
-    // Validate input parameters
     if (!userId || typeof userId !== 'string') {
       throw new BadRequestException('Invalid user ID provided');
     }
@@ -61,7 +67,6 @@ export class FileUploadService {
     let oldFiles: string[] = [];
 
     try {
-      // Find existing profile pictures for cleanup after successful save
       try {
         const files = fs.readdirSync(this.profilePicturesDir);
         oldFiles = files.filter(file => file.startsWith(`${userId}_avatar`));
@@ -72,7 +77,6 @@ export class FileUploadService {
         } as LogContext);
       }
 
-      // Generate unique filename with sanitized extension
       const fileExtension = path.extname(file.originalname).toLowerCase();
       const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
 
@@ -324,6 +328,172 @@ export class FileUploadService {
         totalSize: 0,
         directory: this.profilePicturesDir,
       };
+    }
+  }
+
+  async saveAuctionImage(file: Express.Multer.File): Promise<string> {
+    if (!file || !file.buffer || !file.originalname) {
+      throw new BadRequestException('Invalid file provided');
+    }
+
+    let newFilePath: string | null = null;
+
+    try {
+      const fileExtension = path.extname(file.originalname).toLowerCase();
+      const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
+
+      if (!allowedExtensions.includes(fileExtension)) {
+        throw new BadRequestException(`File extension ${fileExtension} is not allowed. Allowed extensions: ${allowedExtensions.join(', ')}`);
+      }
+
+      const timestamp = Date.now();
+      const randomString = Math.random().toString(36).substring(2, 15);
+      const fileName = `auction_${timestamp}_${randomString}${fileExtension}`;
+      newFilePath = path.join(this.auctionImagesDir, fileName);
+
+      this.ensureDirectoriesExist();
+
+      fs.writeFileSync(newFilePath, file.buffer);
+
+      try {
+        const stats = fs.statSync(newFilePath);
+        if (stats.size !== file.buffer.length) {
+          throw new Error('File size mismatch after write');
+        }
+      } catch (error) {
+        if (newFilePath && fs.existsSync(newFilePath)) {
+          try {
+            fs.unlinkSync(newFilePath);
+          } catch (cleanupError) {
+            this.loggingService.logError('Failed to cleanup partial file', cleanupError, {
+              filePath: newFilePath,
+            } as LogContext);
+          }
+        }
+        throw new BadRequestException('File verification failed after save');
+      }
+
+      this.loggingService.logInfo('Auction image saved successfully', {
+        fileName,
+        filePath: newFilePath,
+        fileSize: file.size,
+        mimeType: file.mimetype,
+      } as LogContext);
+
+      return `/static/auction-images/${fileName}`;
+
+    } catch (error) {
+      if (newFilePath && fs.existsSync(newFilePath)) {
+        try {
+          fs.unlinkSync(newFilePath);
+          this.loggingService.logInfo('Cleaned up new auction image due to error', {
+            filePath: newFilePath,
+          } as LogContext);
+        } catch (cleanupError) {
+          this.loggingService.logError('Failed to cleanup new file after error', cleanupError, {
+            filePath: newFilePath,
+          } as LogContext);
+        }
+      }
+
+      this.loggingService.logError(
+        'Failed to save auction image',
+        error,
+        {
+          fileName: file.originalname,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+        } as LogContext,
+      );
+
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('Failed to save auction image');
+    }
+  }
+
+
+  async deleteAuctionImage(imageUrl: string): Promise<void> {
+    if (!imageUrl || typeof imageUrl !== 'string') {
+      throw new BadRequestException('Invalid image URL provided');
+    }
+
+    try {
+      const fileName = imageUrl.split('/').pop();
+      if (!fileName) {
+        throw new BadRequestException('Invalid image URL format');
+      }
+
+      const filePath = path.join(this.auctionImagesDir, fileName);
+
+      if (!fs.existsSync(filePath)) {
+        this.loggingService.logWarning('Auction image file not found for deletion', {
+          imageUrl,
+          fileName,
+          filePath,
+        } as LogContext);
+        return;
+      }
+
+      fs.unlinkSync(filePath);
+
+      this.loggingService.logInfo('Auction image deleted successfully', {
+        imageUrl,
+        fileName,
+        filePath,
+      } as LogContext);
+
+    } catch (error) {
+      this.loggingService.logError(
+        'Failed to delete auction image',
+        error,
+        {
+          imageUrl,
+        } as LogContext,
+      );
+      throw new BadRequestException('Failed to delete auction image');
+    }
+  }
+
+
+  async cleanupOrphanedAuctionImages(existingImageUrls: string[]): Promise<void> {
+    try {
+      const files = fs.readdirSync(this.auctionImagesDir);
+      const existingFileNames = existingImageUrls.map(url => url.split('/').pop());
+
+      for (const file of files) {
+        if (!existingFileNames.includes(file)) {
+          const filePath = path.join(this.auctionImagesDir, file);
+          const stats = fs.statSync(filePath);
+
+          // Delete files older than 24 hours
+          const fileAgeMs = Date.now() - stats.mtime.getTime();
+          const twentyFourHoursMs = 24 * 60 * 60 * 1000;
+
+          if (fileAgeMs > twentyFourHoursMs) {
+            try {
+              fs.unlinkSync(filePath);
+              this.loggingService.logInfo('Cleaned up orphaned auction image', {
+                fileName: file,
+                filePath,
+                fileAgeHours: fileAgeMs / (1000 * 60 * 60),
+              } as LogContext);
+            } catch (deleteError) {
+              this.loggingService.logError('Failed to delete orphaned auction image', deleteError, {
+                fileName: file,
+                filePath,
+              } as LogContext);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      this.loggingService.logError(
+        'Failed to cleanup orphaned auction images',
+        error,
+        {} as LogContext,
+      );
     }
   }
 }

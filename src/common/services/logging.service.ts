@@ -35,6 +35,7 @@ export interface LogContext {
   amount?: number;
   currentPrice?: number;
   bidId?: string;
+  imageUrl?: string;
   page?: number;
   limit?: number;
   search?: string;

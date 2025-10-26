@@ -1,61 +1,61 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { AuctionStatus } from '../utils/auction-status.util';
 
 export class AuctionCardDto {
   @ApiProperty({
-    description: 'The unique identifier of the auction',
+    description: 'The unique identifier of auction',
     example: '507f1f77bcf86cd799439011',
     type: String,
   })
   id: string;
 
   @ApiProperty({
-    description: 'The title of the auction',
+    description: 'The title of auction',
     example: 'Vintage Camera Collection',
     type: String,
   })
   title: string;
 
   @ApiProperty({
-    description: 'The current price of the auction (highest bid or starting price)',
+    description: 'The starting price of auction',
+    example: 100.00,
+    type: Number,
+  })
+  startingPrice: number;
+
+  @ApiProperty({
+    description: 'The current price of auction (highest bid or starting price)',
     example: 150.00,
     type: Number,
   })
   currentPrice: number;
 
   @ApiProperty({
-    description: 'The end date and time of the auction',
+    description: 'The optional image URL of the auction',
+    example: '/static/auction-images/auction_123456.jpg',
+    type: String,
+    required: false,
+  })
+  imageUrl?: string;
+
+  @ApiProperty({
+    description: 'The end date and time of auction',
     example: '2024-12-31T23:59:59.000Z',
     type: Date,
   })
   endTime: Date;
 
   @ApiProperty({
-    description: 'The status of the auction from the current user perspective',
+    description: 'The status of the auction from the current user\'s perspective',
+    enum: AuctionStatus,
     example: 'WINNING',
-    enum: ['IN_PROGRESS', 'WINNING', 'OUTBID', 'DONE'],
+  })
+  status: AuctionStatus;
+
+  @ApiProperty({
+    description: 'The ID of the seller who created this auction',
+    example: '507f1f77bcf86cd799439011',
     type: String,
   })
-  status: 'IN_PROGRESS' | 'WINNING' | 'OUTBID' | 'DONE';
-
-  @ApiProperty({
-    description: 'The current user bid amount (only if user has bid)',
-    example: 125.00,
-    type: Number,
-    required: false,
-  })
-  myBid?: number;
-
-  @ApiProperty({
-    description: 'The total number of bids placed on this auction',
-    example: 5,
-    type: Number,
-  })
-  bidCount: number;
-
-  @ApiProperty({
-    description: 'The name of the seller',
-    example: 'John Doe',
-    type: String,
-  })
-  sellerName: string;
+  sellerId: string;
 }

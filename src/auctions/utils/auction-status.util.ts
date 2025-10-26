@@ -1,4 +1,11 @@
-export type AuctionStatus = 'IN_PROGRESS' | 'WINNING' | 'OUTBID' | 'DONE';
+export enum AuctionStatus {
+  IN_PROGRESS = 'IN_PROGRESS',
+  WINNING = 'WINNING',
+  OUTBID = 'OUTBID',
+  DONE = 'DONE'
+}
+
+export type AuctionStatusType = AuctionStatus;
 
 export interface AuctionWithBids {
   id: string;
@@ -26,20 +33,20 @@ export function calculateAuctionStatus(
   const isExpired = auction.endTime < now;
 
   if (isExpired) {
-    return 'DONE';
+    return AuctionStatus.DONE;
   }
 
   if (!userId) {
-    return 'IN_PROGRESS';
+    return AuctionStatus.IN_PROGRESS;
   }
 
   const userBid = auction.bids.find(bid => bid.bidderId === userId);
   if (!userBid) {
-    return 'IN_PROGRESS';
+    return AuctionStatus.IN_PROGRESS;
   }
 
   const highestBid = calculateCurrentPrice(auction);
-  return Number(userBid.amount) >= highestBid ? 'WINNING' : 'OUTBID';
+  return Number(userBid.amount) >= highestBid ? AuctionStatus.WINNING : AuctionStatus.OUTBID;
 }
 
 export function getUserBidAmount(

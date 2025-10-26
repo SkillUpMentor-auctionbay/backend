@@ -1,13 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { AuctionCardDto } from './auction-card.dto';
 
-export class AuctionListResponseDto {
-  @ApiProperty({
-    description: 'List of auction cards',
-    type: [AuctionCardDto],
-  })
-  auctions: AuctionCardDto[];
-
+export class PaginationDto {
   @ApiProperty({
     description: 'Current page number',
     example: 1,
@@ -17,14 +11,14 @@ export class AuctionListResponseDto {
 
   @ApiProperty({
     description: 'Number of items per page',
-    example: 10,
+    example: 100,
     type: Number,
   })
   limit: number;
 
   @ApiProperty({
     description: 'Total number of auctions',
-    example: 25,
+    example: 250,
     type: Number,
   })
   total: number;
@@ -35,18 +29,18 @@ export class AuctionListResponseDto {
     type: Number,
   })
   totalPages: number;
+}
+
+export class AuctionListResponseDto {
+  @ApiProperty({
+    description: 'List of auction cards',
+    type: [AuctionCardDto],
+  })
+  auctions: AuctionCardDto[];
 
   @ApiProperty({
-    description: 'Whether there is a next page',
-    example: true,
-    type: Boolean,
+    description: 'Pagination information',
+    type: PaginationDto,
   })
-  hasNext: boolean;
-
-  @ApiProperty({
-    description: 'Whether there is a previous page',
-    example: false,
-    type: Boolean,
-  })
-  hasPrevious: boolean;
+  pagination: PaginationDto;
 }
