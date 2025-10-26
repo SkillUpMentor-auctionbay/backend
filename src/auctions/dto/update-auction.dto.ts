@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsOptional, IsDecimal, IsDate } from 'class-validator';
 import { Type } from 'class-transformer';
 
+
 export class UpdateAuctionDto {
   @ApiProperty({
     description: 'The title of the auction',

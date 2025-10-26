@@ -11,12 +11,14 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFile,
-  NotFoundException,
-  ForbiddenException,
+  ParseFilePipeBuilder,
+  HttpStatus,
+  BadRequestException,
 } from '@nestjs/common';
-import { ApiTags, ApiResponse, ApiBearerAuth, ApiQuery, ApiParam, ApiConsumes } from '@nestjs/swagger';
+import { ApiTags, ApiResponse, ApiBearerAuth, ApiQuery, ApiParam, ApiConsumes, ApiBody } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuctionService } from './auction.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { LoggingService } from '../common/services/logging.service';
 import { FileUploadService } from '../common/services/file-upload.service';
@@ -26,7 +28,8 @@ import { PlaceBidDto } from './dto/place-bid.dto';
 import { DetailedAuctionDto } from './dto/detailed-auction.dto';
 import { AuctionListResponseDto } from './dto/auction-list-response.dto';
 import { AuctionQueryDto, AuctionFilter } from './dto/auction-query.dto';
-import { ImageUploadResponseDto } from './dto/image-upload.dto';
+import { ImageUploadResponseDto, ImageUploadDto } from './dto/image-upload.dto';
+import { FileUploadErrorDto } from '../users/dto/change-profile-picture.dto';
 
 @ApiTags('auctions')
 @Controller({ path: 'auctions', version: '1' })
@@ -35,6 +38,7 @@ export class AuctionController {
     private auctionService: AuctionService,
     private loggingService: LoggingService,
     private fileUploadService: FileUploadService,
+    private prisma: PrismaService,
   ) {}
 
 
@@ -91,6 +95,10 @@ export class AuctionController {
   @ApiBearerAuth('JWT')
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'Image file to upload for the auction',
+    type: ImageUploadDto,
+  })
   @ApiParam({
     name: 'id',
     description: 'The unique identifier of auction to upload image for',
@@ -104,7 +112,7 @@ export class AuctionController {
   })
   @ApiResponse({
     status: 400,
-    description: 'Bad Request - Invalid file or file type',
+    description: 'Bad Request - Invalid file or filename',
   })
   @ApiResponse({
     status: 401,
@@ -118,10 +126,32 @@ export class AuctionController {
     status: 404,
     description: 'Not Found - Auction not found',
   })
+  @ApiResponse({
+    status: 422,
+    description: 'Unprocessable Entity - File validation failed',
+    type: FileUploadErrorDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - Invalid file or filename',
+    type: FileUploadErrorDto,
+  })
   async uploadAuctionImage(
     @Request() req,
     @Param('id') auctionId: string,
-    @UploadedFile() file: Express.Multer.File
+    @UploadedFile(
+      new ParseFilePipeBuilder()
+        .addFileTypeValidator({
+          fileType: /(jpeg|jpg|png|webp)$/,
+        })
+        .addMaxSizeValidator({
+          maxSize: 5 * 1024 * 1024, // 5MB
+        })
+        .build({
+          errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
+        }),
+    )
+    file: Express.Multer.File
   ) {
     this.loggingService.logInfo('Auction image upload request', {
       userId: req.user.id,
@@ -131,17 +161,32 @@ export class AuctionController {
       mimeType: file?.mimetype,
     });
 
-    try {
-      const auction = await this.auctionService.getAuctionById(auctionId, req.user.id);
-      if (!auction) {
-        throw new NotFoundException('Auction not found');
-      }
+    if (!file) {
+      this.loggingService.logWarning('Auction image upload attempted without file', {
+        userId: req.user.id,
+        auctionId,
+      });
+      throw new BadRequestException('File is required for image upload');
+    }
 
-      if (auction.seller.id !== req.user.id) {
-        throw new ForbiddenException('You can only upload images to your own auctions');
-      }
+    if (!file.originalname || typeof file.originalname !== 'string') {
+      this.loggingService.logWarning('Auction image upload with invalid filename', {
+        userId: req.user.id,
+        auctionId,
+        fileName: file.originalname,
+      });
+      throw new BadRequestException('Invalid filename provided');
+    }
+
+    try {
+      await this.auctionService.validateAuctionOwnership(auctionId, req.user.id);
 
       const imageUrl = await this.fileUploadService.saveAuctionImage(file);
+
+      await this.prisma.auction.update({
+        where: { id: auctionId },
+        data: { imageUrl },
+      });
 
       return {
         message: 'Image uploaded successfully',

@@ -99,12 +99,9 @@ export class AuctionService {
       throw new ForbiddenException('You can only update your own auctions');
     }
 
-    const bidCount = await this.prisma.bid.count({
-      where: { auctionId },
-    });
-
-    if (bidCount > 0) {
-      throw new BadRequestException('Cannot update auction with existing bids');
+    // Prevent any attempt to update starting price
+    if ('startingPrice' in updateAuctionDto && updateAuctionDto.startingPrice !== undefined) {
+      throw new BadRequestException('Starting price cannot be updated after auction creation');
     }
 
     if (updateAuctionDto.endTime && new Date(updateAuctionDto.endTime) <= new Date()) {
@@ -220,6 +217,23 @@ export class AuctionService {
   
   async placeBid(auctionId: string, bidderId: string, placeBidDto: PlaceBidDto): Promise<BidDto> {
     return this.bidsService.placeBid(auctionId, bidderId, placeBidDto);
+  }
+
+  async validateAuctionOwnership(auctionId: string, userId: string) {
+    const auction = await this.prisma.auction.findUnique({
+      where: { id: auctionId },
+      select: { id: true, sellerId: true }
+    });
+
+    if (!auction) {
+      throw new NotFoundException('Auction not found');
+    }
+
+    if (auction.sellerId !== userId) {
+      throw new ForbiddenException('You can only access your own auctions');
+    }
+
+    return auction;
   }
 
   async deleteAuctionImage(auctionId: string, userId: string): Promise<void> {
