@@ -104,7 +104,11 @@ export class AuthService {
         signupDto.profilePictureUrl,
       );
 
-      const payload = { email: user.email, sub: user.id };
+      const payload = {
+        email: user.email,
+        sub: user.id,
+        tokenVersion: user.tokenVersion
+      };
       const access_token = this.jwtService.sign(payload);
 
       this.loggingService.logUserRegistration(user.email, user.id);

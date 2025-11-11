@@ -9,6 +9,14 @@ import { ValidationPipe as CustomValidationPipe } from './common/pipes/validatio
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Enable CORS for frontend
+  app.enableCors({
+    origin: 'http://localhost:3000',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    credentials: true,
+  });
+
   const config = new DocumentBuilder()
     .setTitle('Auction Bay API')
     .setDescription('A comprehensive auction management system API')

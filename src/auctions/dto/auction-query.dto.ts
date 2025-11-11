@@ -31,7 +31,7 @@ export class AuctionQueryDto {
   @ApiProperty({
     description: 'Number of items per page',
     required: false,
-    example: 100,
+    example: 500,
     type: Number,
   })
   @IsOptional()

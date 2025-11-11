@@ -99,7 +99,6 @@ export class AuctionService {
       throw new ForbiddenException('You can only update your own auctions');
     }
 
-    // Prevent any attempt to update starting price
     if ('startingPrice' in updateAuctionDto && updateAuctionDto.startingPrice !== undefined) {
       throw new BadRequestException('Starting price cannot be updated after auction creation');
     }
@@ -282,6 +281,52 @@ export class AuctionService {
     }
   }
 
+  async deleteAuction(auctionId: string, userId: string): Promise<void> {
+    await this.validateAuctionOwnership(auctionId, userId);
+
+    const auction = await this.prisma.auction.findUnique({
+      where: { id: auctionId },
+      select: { title: true, imageUrl: true }
+    });
+
+    if (!auction) {
+      throw new NotFoundException('Auction not found');
+    }
+
+    this.loggingService.logInfo('Deleting auction', {
+      auctionId,
+      userId,
+      title: auction.title,
+    });
+
+    try {
+      if (auction.imageUrl) {
+        await this.fileUploadService.deleteAuctionImage(auction.imageUrl);
+        this.loggingService.logInfo('Deleted auction image during auction deletion', {
+          auctionId,
+          imageUrl: auction.imageUrl,
+        });
+      }
+
+      await this.prisma.auction.delete({
+        where: { id: auctionId },
+      });
+
+      this.loggingService.logInfo('Auction deleted successfully', {
+        auctionId,
+        userId,
+        title: auction.title,
+      });
+    } catch (error) {
+      this.loggingService.logError('Failed to delete auction', error, {
+        auctionId,
+        userId,
+        title: auction.title,
+      });
+      throw error;
+    }
+  }
+
   async getAuctions(
     queryDto: AuctionQueryDto,
     userId?: string
@@ -289,7 +334,7 @@ export class AuctionService {
     const {
       filter,
       page = 1,
-      limit = 100,
+      limit = 500,
     } = queryDto;
 
     const skip = (page - 1) * limit;
@@ -322,6 +367,13 @@ export class AuctionService {
     }
 
     const where: any = filter === AuctionFilter.ALL ? {} : { id: { in: auctionIds } };
+
+    if (filter === AuctionFilter.BID) {
+      const now = new Date();
+      if (where.id) {
+        where.endTime = { gt: now };
+      }
+    }
     if (filter !== AuctionFilter.ALL && auctionIds.length === 0) {
       return {
         auctions: [],
@@ -350,7 +402,7 @@ export class AuctionService {
           take: 1,
         },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { endTime: 'desc' },
       skip,
       take: limit,
     });
@@ -361,9 +413,11 @@ export class AuctionService {
       const currentPrice = calculateCurrentPrice(auction);
       const status = calculateAuctionStatus(auction, userId);
 
+      
       return {
         id: auction.id,
         title: auction.title,
+        description: auction.description,
         startingPrice: Number(auction.startingPrice),
         currentPrice,
         imageUrl: auction.imageUrl,
@@ -393,8 +447,17 @@ export class AuctionService {
   }
 
   private async getBiddedAuctionIds(userId: string): Promise<string[]> {
+    const now = new Date();
+
     const userBids = await this.prisma.bid.findMany({
-      where: { bidderId: userId },
+      where: {
+        bidderId: userId,
+        auction: {
+          endTime: {
+            gt: now
+          }
+        }
+      },
       select: { auctionId: true },
       distinct: ['auctionId'],
     });

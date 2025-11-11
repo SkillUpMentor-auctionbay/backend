@@ -17,6 +17,7 @@ import { ApiTags, ApiResponse, ApiBody, ApiConsumes } from '@nestjs/swagger';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { UserDto } from './dto/user.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
+import { UserStatisticsDto } from './dto/user-statistics.dto';
 import {
   ChangeProfilePictureResponseDto,
   FileUploadErrorDto,
@@ -24,6 +25,7 @@ import {
   RemoveProfilePictureResponseDto
 } from './dto/change-profile-picture.dto';
 import { UsersService } from './users.service';
+import { StatisticsService } from './statistics.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { LoggingService } from '../common/services/logging.service';
 
@@ -33,6 +35,7 @@ import { LoggingService } from '../common/services/logging.service';
 export class UsersController {
   constructor(
     private usersService: UsersService,
+    private statisticsService: StatisticsService,
     private loggingService: LoggingService,
   ) {}
 
@@ -51,6 +54,43 @@ export class UsersController {
     return req.user;
   }
 
+  @Get('me/statistics')
+  @UseGuards(JwtAuthGuard)
+  @ApiResponse({
+    status: 200,
+    description: 'User statistics retrieved successfully',
+    type: UserStatisticsDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - JWT token is missing or invalid',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found',
+  })
+  async getStatistics(@Request() req): Promise<UserStatisticsDto> {
+    this.loggingService.logInfo('User statistics request', {
+      userId: req.user.id,
+    });
+
+    try {
+      const statistics = await this.statisticsService.getUserStatistics(req.user.id);
+
+      this.loggingService.logInfo('User statistics retrieved successfully', {
+        userId: req.user.id,
+      });
+
+      return statistics;
+    } catch (error) {
+      this.loggingService.logError('Failed to retrieve user statistics', error, {
+        userId: req.user.id,
+      });
+      throw error;
+    }
+  }
+
+  
   @Patch('me/update-password')
   @UseGuards(JwtAuthGuard)
   @ApiBody({ type: UpdatePasswordDto, description: 'Password update data' })
@@ -129,7 +169,6 @@ export class UsersController {
     )
     file: Express.Multer.File,
   ) {
-    // Null check for file - this should never happen with ParseFilePipe but added for safety
     if (!file) {
       this.loggingService.logWarning('Profile picture upload attempted without file', {
         userId: req.user.id,
@@ -137,7 +176,6 @@ export class UsersController {
       throw new BadRequestException('File is required for profile picture upload');
     }
 
-    // Validate filename to prevent path traversal attacks
     if (!file.originalname || typeof file.originalname !== 'string') {
       this.loggingService.logWarning('Profile picture upload with invalid filename', {
         userId: req.user.id,
@@ -146,7 +184,6 @@ export class UsersController {
       throw new BadRequestException('Invalid filename provided');
     }
 
-    // Additional security validation for filename
     const sanitizedFilename = this.sanitizeFilename(file.originalname);
     if (sanitizedFilename !== file.originalname) {
       this.loggingService.logWarning('Profile picture upload with potentially malicious filename', {
@@ -206,15 +243,12 @@ export class UsersController {
     }
   }
 
-  /**
-   * Sanitize filename to prevent path traversal and injection attacks
-   */
+
   private sanitizeFilename(filename: string): string {
     if (!filename || typeof filename !== 'string') {
       return '';
     }
 
-    // Remove path separators and dangerous characters
     const sanitized = filename
       .replace(/[\\\/]/g, '_') // Replace path separators
       .replace(/\.\./g, '_') // Replace directory traversal attempts
@@ -223,7 +257,6 @@ export class UsersController {
       .replace(/^\.+/, '') // Remove leading dots
       .trim();
 
-    // Limit filename length to prevent buffer overflow attacks
     const maxLength = 255;
     return sanitized.length > maxLength ? sanitized.substring(0, maxLength) : sanitized;
   }

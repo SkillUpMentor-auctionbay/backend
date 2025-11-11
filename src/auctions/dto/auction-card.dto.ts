@@ -17,6 +17,13 @@ export class AuctionCardDto {
   title: string;
 
   @ApiProperty({
+    description: 'The description of auction',
+    example: 'A beautiful vintage camera collection from the 1950s in excellent condition.',
+    type: String,
+  })
+  description: string;
+
+  @ApiProperty({
     description: 'The starting price of auction',
     example: 100.00,
     type: Number,

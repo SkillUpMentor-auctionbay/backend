@@ -328,6 +328,52 @@ export class AuctionController {
   }
 
 
+  @Delete('me/auction/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT')
+  @ApiParam({
+    name: 'id',
+    description: 'The unique identifier of the auction to delete',
+    example: '507f1f77bcf86cd799439011',
+    type: String,
+  })
+  @ApiResponse({
+    status: 204,
+    description: 'Auction deleted successfully',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - JWT token is missing or invalid',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - You can only delete your own auctions',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Not Found - Auction not found',
+  })
+  async deleteAuction(
+    @Request() req,
+    @Param('id') auctionId: string
+  ) {
+    this.loggingService.logInfo('Delete auction request', {
+      userId: req.user.id,
+      auctionId,
+    });
+
+    try {
+      await this.auctionService.deleteAuction(auctionId, req.user.id);
+    } catch (error) {
+      this.loggingService.logError('Delete auction failed', error, {
+        userId: req.user.id,
+        auctionId,
+      });
+      throw error;
+    }
+  }
+
+
   @Get()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT')

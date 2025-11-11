@@ -36,6 +36,9 @@ model Auction {
   seller        User     @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   bids          Bid[]
 
+  @@index([sellerId, endTime])
+  @@index([endTime]) // For ordering by end date (freshest first)
+  @@index([sellerId, createdAt]) // For ordering by creation date
   @@map("auctions")
 }
 
@@ -49,6 +52,8 @@ model Bid {
   bidder    User     @relation(fields: [bidderId], references: [id], onDelete: Cascade)
 
   @@unique([auctionId, bidderId])
+  @@index([bidderId])
+  @@index([bidderId, auctionId])
   @@map("bids")
 }
 
