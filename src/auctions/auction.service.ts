@@ -399,7 +399,6 @@ export class AuctionService {
         bids: {
           select: { amount: true, bidderId: true },
           orderBy: { amount: 'desc' },
-          take: 1,
         },
       },
       orderBy: { endTime: 'desc' },

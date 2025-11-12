@@ -11,12 +11,14 @@ import {
   ParseFilePipeBuilder,
   HttpStatus,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiResponse, ApiBody, ApiConsumes } from '@nestjs/swagger';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { UserDto } from './dto/user.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
+import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
 import { UserStatisticsDto } from './dto/user-statistics.dto';
 import {
   ChangeProfilePictureResponseDto,
@@ -52,6 +54,68 @@ export class UsersController {
   })
   async getMe(@Request() req): Promise<UserDto> {
     return req.user;
+  }
+
+  @Patch('me/update-profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBody({ type: UpdateUserProfileDto, description: 'User profile update data' })
+  @ApiResponse({
+    status: 200,
+    description: 'Profile updated successfully',
+    type: UserDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Bad Request - Validation error',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Conflict - Email already in use',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized - JWT token is missing or invalid',
+  })
+  async updateProfile(
+    @Request() req,
+    @Body() updateProfileDto: UpdateUserProfileDto,
+  ): Promise<UserDto> {
+    this.loggingService.logInfo('Profile update request', {
+      userId: req.user.id,
+      updates: {
+        name: updateProfileDto.name,
+        surname: updateProfileDto.surname,
+        email: updateProfileDto.email,
+      },
+    });
+
+    try {
+      // Check if email is already taken by another user
+      if (updateProfileDto.email !== req.user.email) {
+        const existingUser = await this.usersService.findByEmail(updateProfileDto.email);
+        if (existingUser && existingUser.id !== req.user.id) {
+          throw new ConflictException('Email is already in use by another account');
+        }
+      }
+
+      const updatedUser = await this.usersService.updateUser(req.user.id, {
+        name: updateProfileDto.name,
+        surname: updateProfileDto.surname,
+        email: updateProfileDto.email,
+      });
+
+      this.loggingService.logInfo('Profile updated successfully', {
+        userId: req.user.id,
+        message: 'User profile updated',
+      });
+
+      return updatedUser;
+    } catch (error) {
+      this.loggingService.logError('Profile update failed', error, {
+        userId: req.user.id,
+      });
+      throw error;
+    }
   }
 
   @Get('me/statistics')
