@@ -17,8 +17,11 @@ model User {
   profile_picture_url String?
   surname             String
   tokenVersion        Int       @default(0)
+  passwordResetToken  String?
+  passwordResetExpires DateTime?
   auctionsCreated     Auction[]
   bids                Bid[]
+  notifications       Notification[]
 
   @@map("users")
 }
@@ -35,10 +38,12 @@ model Auction {
   updatedAt     DateTime @updatedAt
   seller        User     @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   bids          Bid[]
+  notifications Notification[]
+  scheduledJobs ScheduledJob[]
 
   @@index([sellerId, endTime])
-  @@index([endTime]) // For ordering by end date (freshest first)
-  @@index([sellerId, createdAt]) // For ordering by creation date
+  @@index([endTime])
+  @@index([sellerId, createdAt])
   @@map("auctions")
 }
 
@@ -55,5 +60,42 @@ model Bid {
   @@index([bidderId])
   @@index([bidderId, auctionId])
   @@map("bids")
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  auctionId String
+  price     Decimal?  @db.Decimal(10, 2)
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  auction   Auction   @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, auctionId])
+  @@map("notifications")
+}
+
+model ScheduledJob {
+  id          String    @id @default(cuid())
+  auctionId   String    @unique
+  scheduledAt DateTime
+  status      JobStatus @default(PENDING)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  executedAt  DateTime?
+  error       String?
+  auction     Auction   @relation(fields: [auctionId], references: [id], onDelete: Cascade)
+
+  @@index([scheduledAt, status])
+  @@index([auctionId])
+  @@map("scheduled_jobs")
+}
+
+enum JobStatus {
+  PENDING
+  EXECUTED
+  FAILED
+  CANCELLED
 }
 

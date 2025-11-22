@@ -6,9 +6,11 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { AuctionModule } from './auctions/auction.module';
+import { AuctionEndModule } from './auctions/auction-end.module';
 import { LoggingService } from './common/services/logging.service';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ValidationPipe } from './common/pipes/validation.pipe';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -24,6 +26,8 @@ import { ValidationPipe } from './common/pipes/validation.pipe';
     AuthModule,
     UsersModule,
     AuctionModule,
+    AuctionEndModule,
+    NotificationsModule,
   ],
   controllers: [],
   providers: [LoggingService, HttpExceptionFilter, ValidationPipe],

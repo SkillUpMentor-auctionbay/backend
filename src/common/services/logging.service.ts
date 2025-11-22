@@ -3,6 +3,8 @@ import { Injectable, Logger } from '@nestjs/common';
 export interface LogContext {
   userId?: string;
   username?: string;
+  email?: string;
+  token?: string;
   ip?: string;
   userAgent?: string;
   requestId?: string;
@@ -30,6 +32,7 @@ export interface LogContext {
   sellerId?: string;
   bidderId?: string;
   title?: string;
+  auctionTitle?: string;
   startingPrice?: number;
   endTime?: Date;
   amount?: number;
@@ -45,6 +48,33 @@ export interface LogContext {
   sortOrder?: string;
   includeEnded?: boolean;
   updates?: Record<string, any>;
+  // Notification context
+  notificationId?: string;
+  // Scheduler context
+  scheduledAt?: Date;
+  newScheduledAt?: Date;
+  oldScheduledAt?: Date;
+  newEndTime?: Date;
+  jobIds?: string[];
+  jobId?: string;
+  deletedCount?: number;
+  createBids?: boolean;
+  status?: string;
+  type?: string;
+  isCleared?: boolean;
+  lastEventId?: string;
+  newPrice?: number;
+  price?: number;
+  query?: Record<string, any>;
+  // Auction end context
+  processedCount?: number;
+  bidCount?: number;
+  winnerId?: string;
+  loserId?: string;
+  auctionIds?: string[];
+  winnerName?: string;
+  loserName?: string;
+  finalPrice?: number;
 }
 
 export interface SecurityLogContext extends LogContext {

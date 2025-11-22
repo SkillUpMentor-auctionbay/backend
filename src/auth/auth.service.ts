@@ -2,10 +2,12 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { LoggingService } from '../common/services/logging.service';
+import { EmailService } from '../email/email.service';
 import * as bcrypt from 'bcryptjs';
 
 @Injectable()
@@ -14,6 +16,7 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService,
     private loggingService: LoggingService,
+    private emailService: EmailService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<any> {
@@ -144,6 +147,79 @@ export class AuthService {
         userId,
       });
       throw error;
+    }
+  }
+
+  async forgotPassword(email: string) {
+    this.loggingService.logInfo('Password reset request received', { email });
+
+    const result = await this.usersService.setPasswordResetToken(email);
+
+    if (!result) {
+      // Don't reveal whether email exists (OWASP recommendation)
+      this.loggingService.logInfo('Password reset requested for non-existent email', { email });
+      return { message: 'If an account with this email exists, a password reset link has been sent.' };
+    }
+
+    try {
+      await this.emailService.sendPasswordResetEmail(email, result.token);
+
+      this.loggingService.logInfo('Password reset email sent successfully', { email });
+
+      return { message: 'If an account with this email exists, a password reset link has been sent.' };
+    } catch (error) {
+      this.loggingService.logError('Failed to send password reset email', error, { email });
+
+      // Clear the reset token since email failed
+      await this.usersService.clearPasswordResetTokenByEmail(email);
+
+      throw new BadRequestException('Failed to send password reset email. Please try again later.');
+    }
+  }
+
+  async resetPassword(token: string, password: string, confirmPassword: string) {
+    if (password !== confirmPassword) {
+      throw new BadRequestException('Passwords do not match');
+    }
+
+    if (password.length < 8) {
+      throw new BadRequestException('Password must be at least 8 characters long');
+    }
+
+    try {
+      const updatedUser = await this.usersService.resetPassword(token, password);
+
+      this.loggingService.logInfo('Password reset completed successfully', {
+        userId: updatedUser.id,
+        email: updatedUser.email,
+      });
+
+      return {
+        message: 'Password reset successfully. Please login with your new password.',
+        user: updatedUser,
+      };
+    } catch (error) {
+      this.loggingService.logError('Password reset failed', error, { token });
+      throw error;
+    }
+  }
+
+  async verifyResetToken(token: string) {
+    try {
+      const user = await this.usersService.findByResetToken(token);
+
+      if (!user) {
+        return { valid: false, message: 'Invalid or expired reset token' };
+      }
+
+      return {
+        valid: true,
+        message: 'Reset token is valid',
+        email: user.email
+      };
+    } catch (error) {
+      this.loggingService.logError('Token verification failed', error, { token });
+      return { valid: false, message: 'Token verification failed' };
     }
   }
 }

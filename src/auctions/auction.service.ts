@@ -13,6 +13,7 @@ import { PlaceBidDto } from './dto/place-bid.dto';
 import { AuctionCardDto } from './dto/auction-card.dto';
 import { DetailedAuctionDto } from './dto/detailed-auction.dto';
 import { AuctionListResponseDto } from './dto/auction-list-response.dto';
+import { AuctionSchedulerService } from './auction-scheduler.service';
 import { BidDto } from './dto/bid.dto';
 import { AuctionQueryDto, AuctionFilter } from './dto/auction-query.dto';
 import {
@@ -21,6 +22,12 @@ import {
   getUserBidAmount,
 } from './utils/auction-status.util';
 import { BidsService } from './bids.service';
+import {
+  TestSetAuctionTimeDto,
+  TestResetAuctionDto,
+  TestBatchAuctionOperationDto,
+  TestSimulateBiddingDto,
+} from './dto/test-auction.dto';
 
 @Injectable()
 export class AuctionService {
@@ -29,6 +36,7 @@ export class AuctionService {
     private loggingService: LoggingService,
     private bidsService: BidsService,
     private fileUploadService: FileUploadService,
+    private auctionSchedulerService: AuctionSchedulerService,
   ) {}
 
   async createAuction(sellerId: string, createAuctionDto: CreateAuctionDto) {
@@ -75,6 +83,9 @@ export class AuctionService {
         auctionId: auction.id,
         sellerId,
       });
+
+      // Schedule job to process auction end at the specified time
+      await this.auctionSchedulerService.scheduleAuctionEnd(auction.id, new Date(endTime));
 
       return auction;
     } catch (error) {
@@ -133,6 +144,11 @@ export class AuctionService {
         auctionId,
         sellerId,
       });
+
+      // If endTime was updated, reschedule the job
+      if (updateAuctionDto.endTime) {
+        await this.auctionSchedulerService.rescheduleAuctionEnd(auctionId, new Date(updateAuctionDto.endTime));
+      }
 
       return updatedAuction;
     } catch (error) {
@@ -317,6 +333,9 @@ export class AuctionService {
         userId,
         title: auction.title,
       });
+
+      // Cancel scheduled job when auction is deleted
+      await this.auctionSchedulerService.cancelAuctionEnd(auctionId);
     } catch (error) {
       this.loggingService.logError('Failed to delete auction', error, {
         auctionId,
@@ -488,5 +507,412 @@ export class AuctionService {
         return userBid && userBid >= highestBid;
       })
       .map(a => a.id);
+  }
+
+  // ==================== TEST METHODS ====================
+  // These methods are for testing purposes only and should not be used in production
+
+  async testSetAuctionTime(auctionId: string, setTimeDto: TestSetAuctionTimeDto) {
+    const { endTime, bypassValidation = false } = setTimeDto;
+
+    const auction = await this.prisma.auction.findUnique({
+      where: { id: auctionId },
+    });
+
+    if (!auction) {
+      throw new NotFoundException('Auction not found');
+    }
+
+    const newEndTime = new Date(endTime);
+
+    if (!bypassValidation && newEndTime <= new Date()) {
+      throw new BadRequestException('End time must be in the future (unless bypassing validation)');
+    }
+
+    const updateData: any = {
+      endTime: newEndTime,
+      updatedAt: new Date(),
+    };
+
+    // Note: status is calculated dynamically in this system based on endTime and bids
+    // Status parameter is ignored for now
+
+    const updatedAuction = await this.prisma.auction.update({
+      where: { id: auctionId },
+      data: updateData,
+    });
+
+    await this.loggingService.logInfo('TEST: Auction time updated and processing status reset', {
+      auctionId,
+      endTime: newEndTime,
+    });
+
+    return {
+      success: true,
+      auctionId,
+      oldEndTime: auction.endTime,
+      newEndTime: updatedAuction.endTime,
+    };
+  }
+
+  async testResetAuction(auctionId: string, resetDto: TestResetAuctionDto) {
+    const {
+      currentPrice,
+      endTime,
+      status,
+      minutesFromNow,
+      hoursFromNow,
+      daysFromNow,
+      clearBids = false,
+      bypassValidation = true,
+    } = resetDto;
+
+    const auction = await this.prisma.auction.findUnique({
+      where: { id: auctionId },
+    });
+
+    if (!auction) {
+      throw new NotFoundException('Auction not found');
+    }
+
+    // Calculate new end time if relative offsets are provided
+    let newEndTime = auction.endTime;
+    if (minutesFromNow !== undefined || hoursFromNow !== undefined || daysFromNow !== undefined) {
+      const now = new Date();
+      const totalMinutes =
+        (minutesFromNow || 0) +
+        ((hoursFromNow || 0) * 60) +
+        ((daysFromNow || 0) * 24 * 60);
+      newEndTime = new Date(now.getTime() + totalMinutes * 60 * 1000);
+    } else if (endTime) {
+      newEndTime = new Date(endTime);
+    }
+
+    if (!bypassValidation && newEndTime <= new Date()) {
+      throw new BadRequestException('End time must be in the future (unless bypassing validation)');
+    }
+
+    // Clear bids if requested
+    if (clearBids) {
+      await this.prisma.bid.deleteMany({
+        where: { auctionId },
+      });
+
+      // Create a new bid with the specified current price
+      await this.prisma.bid.create({
+        data: {
+          amount: currentPrice,
+          auctionId,
+          bidderId: 'test-system-user', // System user for testing
+          createdAt: new Date(),
+        },
+      });
+    }
+
+    const updateData: any = {
+      endTime: newEndTime,
+      updatedAt: new Date(),
+    };
+
+    const updatedAuction = await this.prisma.auction.update({
+      where: { id: auctionId },
+      data: updateData,
+    });
+
+    await this.loggingService.logInfo('TEST: Auction reset completed', {
+      auctionId,
+      currentPrice,
+      endTime: newEndTime,
+      updates: {
+        bidsCleared: clearBids,
+      },
+    });
+
+    return {
+      success: true,
+      auctionId,
+      currentPrice,
+      oldEndTime: auction.endTime,
+      newEndTime: updatedAuction.endTime,
+      bidsCleared: clearBids,
+    };
+  }
+
+  async testBatchOperation(batchDto: TestBatchAuctionOperationDto) {
+    const {
+      auctionIds,
+      minutesOffset = 0,
+      hoursOffset = 0,
+      daysOffset = 0,
+      status,
+      priceMultiplier,
+      bypassValidation = true,
+    } = batchDto;
+
+    const results = [];
+    const totalOffsetMinutes = minutesOffset + (hoursOffset * 60) + (daysOffset * 24 * 60);
+
+    for (const auctionId of auctionIds) {
+      try {
+        const auction = await this.prisma.auction.findUnique({
+          where: { id: auctionId },
+          include: { bids: true },
+        });
+
+        if (!auction) {
+          results.push({ auctionId, success: false, error: 'Auction not found' });
+          continue;
+        }
+
+        const updateData: any = { updatedAt: new Date() };
+
+        // Update end time if offset is provided
+        if (totalOffsetMinutes !== 0) {
+          const newEndTime = new Date(auction.endTime.getTime() + totalOffsetMinutes * 60 * 1000);
+          if (!bypassValidation && newEndTime <= new Date()) {
+            results.push({ auctionId, success: false, error: 'New end time would be in the past' });
+            continue;
+          }
+          updateData.endTime = newEndTime;
+        }
+
+        // Note: status is calculated dynamically in this system
+        // Status parameter is ignored for now
+
+        // Update price if multiplier is provided
+        if (priceMultiplier) {
+          const currentPrice = calculateCurrentPrice(auction);
+          const newPrice = currentPrice * priceMultiplier;
+
+          // Create a new bid with the multiplied price
+          await this.prisma.bid.create({
+            data: {
+              amount: newPrice,
+              auctionId,
+              bidderId: 'test-system-user',
+              createdAt: new Date(),
+            },
+          });
+        }
+
+        const updatedAuction = await this.prisma.auction.update({
+          where: { id: auctionId },
+          data: updateData,
+          include: { bids: true },
+        });
+
+        results.push({
+          auctionId,
+          success: true,
+          endTime: updatedAuction.endTime,
+          currentPrice: calculateCurrentPrice(updatedAuction),
+        });
+      } catch (error) {
+        results.push({
+          auctionId,
+          success: false,
+          error: error.message,
+        });
+      }
+    }
+
+    await this.loggingService.logInfo('TEST: Batch operation completed', {
+      auctionIds,
+      updates: {
+        totalOffsetMinutes,
+        priceMultiplier,
+        successfulUpdates: results.filter(r => r.success).length,
+        failedUpdates: results.filter(r => !r.success).length,
+      },
+    });
+
+    return {
+      success: true,
+      totalAuctions: auctionIds.length,
+      successfulUpdates: results.filter(r => r.success).length,
+      failedUpdates: results.filter(r => !r.success).length,
+      results,
+    };
+  }
+
+  async testSimulateBidding(auctionId: string, biddingDto: TestSimulateBiddingDto) {
+    const {
+      numberOfBids = 5,
+      startAmount,
+      maxAmount,
+      bidInterval = 1,
+      userIds,
+      sequential = true,
+    } = biddingDto;
+
+    const auction = await this.prisma.auction.findUnique({
+      where: { id: auctionId },
+      include: { bids: { orderBy: { amount: 'desc' }, take: 1 } },
+    });
+
+    if (!auction) {
+      throw new NotFoundException('Auction not found');
+    }
+
+    const auctionStatus = calculateAuctionStatus(auction);
+    if (auctionStatus === 'DONE') {
+      throw new BadRequestException('Auction has ended');
+    }
+
+    const currentPrice = calculateCurrentPrice(auction);
+    const startBidAmount = startAmount || currentPrice + 10;
+    const maxBidAmount = maxAmount || startBidAmount + (numberOfBids * 10);
+
+    const bids = [];
+    let currentBid = startBidAmount;
+
+    for (let i = 0; i < numberOfBids; i++) {
+      const bidAmount = sequential
+        ? Math.min(currentBid, maxBidAmount)
+        : startBidAmount + Math.random() * (maxBidAmount - startBidAmount);
+
+      const roundedAmount = Math.round(bidAmount * 100) / 100; // Round to 2 decimal places
+
+      // Create a mock user ID if none provided
+      const bidderId = userIds?.[i % userIds.length] || `test-user-${i}`;
+
+      const bid = await this.prisma.bid.create({
+        data: {
+          amount: roundedAmount,
+          auctionId,
+          bidderId,
+          createdAt: new Date(),
+        },
+      });
+
+      bids.push({
+        id: bid.id,
+        amount: roundedAmount,
+        bidderId,
+        createdAt: bid.createdAt,
+      });
+
+      currentBid = roundedAmount + 10; // Increment for next sequential bid
+
+      // Wait for interval if specified
+      if (bidInterval > 0 && i < numberOfBids - 1) {
+        await new Promise(resolve => setTimeout(resolve, bidInterval * 1000));
+      }
+    }
+
+    await this.loggingService.logInfo('TEST: Bidding simulation completed', {
+      auctionId,
+      bidCount: bids.length,
+      updates: {
+        startAmount: startBidAmount,
+        maxAmount: maxBidAmount,
+        finalBid: bids[bids.length - 1]?.amount,
+      },
+    });
+
+    return {
+      success: true,
+      auctionId,
+      bidsCreated: bids.length,
+      finalPrice: bids[bids.length - 1]?.amount || calculateCurrentPrice(auction),
+      bids,
+    };
+  }
+
+  async testCreateSampleAuctions(userId: string, count: number, hoursSpread: number) {
+    const auctions = [];
+    const now = new Date();
+
+    for (let i = 0; i < count; i++) {
+      const startPrice = Math.floor(Math.random() * 500) + 50;
+      const endTime = new Date(now.getTime() + Math.random() * hoursSpread * 60 * 60 * 1000);
+
+      const auction = await this.prisma.auction.create({
+        data: {
+          title: `Test Auction ${i + 1}`,
+          description: `This is a sample auction for testing purposes. Auction ${i + 1}`,
+          startingPrice: startPrice,
+          endTime,
+          sellerId: userId,
+        },
+      });
+
+      // Create an initial bid to set the starting price as current price
+      await this.prisma.bid.create({
+        data: {
+          amount: startPrice,
+          auctionId: auction.id,
+          bidderId: 'test-system-user',
+          createdAt: new Date(),
+        },
+      });
+
+      auctions.push({
+        id: auction.id,
+        title: auction.title,
+        startingPrice: Number(auction.startingPrice),
+        currentPrice: startPrice, // Use the startPrice we just set
+        endTime: auction.endTime,
+      });
+    }
+
+    await this.loggingService.logInfo('TEST: Sample auctions created', {
+      sellerId: userId,
+      updates: {
+        auctionCount: auctions.length,
+        hoursSpread,
+      },
+    });
+
+    return {
+      success: true,
+      auctionsCreated: auctions.length,
+      auctions,
+    };
+  }
+
+  async testCleanup(olderThanHours: number, onlySample: boolean) {
+    const cutoffTime = new Date(Date.now() - olderThanHours * 60 * 60 * 1000);
+
+    const whereClause: any = {
+      createdAt: { lt: cutoffTime },
+    };
+
+    if (onlySample) {
+      whereClause.title = { contains: 'test' };
+    }
+
+    // First, delete associated bids
+    const auctionsToDelete = await this.prisma.auction.findMany({
+      where: whereClause,
+      select: { id: true },
+    });
+
+    await this.prisma.bid.deleteMany({
+      where: {
+        auctionId: { in: auctionsToDelete.map(a => a.id) },
+      },
+    });
+
+    // Then delete the auctions
+    const deletedAuctions = await this.prisma.auction.deleteMany({
+      where: whereClause,
+    });
+
+    await this.loggingService.logInfo('TEST: Cleanup completed', {
+      updates: {
+        olderThanHours,
+        onlySample,
+        auctionsDeleted: deletedAuctions.count,
+        bidsDeleted: auctionsToDelete.length,
+      },
+    });
+
+    return {
+      success: true,
+      auctionsDeleted: deletedAuctions.count,
+      olderThanHours,
+      onlySample,
+    };
   }
 }

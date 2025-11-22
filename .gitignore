@@ -8,3 +8,7 @@ prisma/prisma.md
 .env*
 
 uploads
+
+sonar*
+.scannerwork
+docker-compose.sonarqube.yaml

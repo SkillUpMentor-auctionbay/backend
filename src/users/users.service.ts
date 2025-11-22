@@ -8,6 +8,7 @@ import { FileUploadService } from '../common/services/file-upload.service';
 import { LoggingService } from '../common/services/logging.service';
 import * as bcrypt from 'bcryptjs';
 import * as fs from 'fs';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class UsersService {
@@ -312,6 +313,115 @@ export class UsersService {
 
       // For other errors, wrap them in a BadRequestException
       throw new BadRequestException('Failed to remove profile picture');
+    }
+  }
+
+  async setPasswordResetToken(email: string): Promise<{ token: string } | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      // Return null if user doesn't exist to prevent user enumeration
+      return null;
+    }
+
+    const resetToken = uuidv4();
+    const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordResetToken: resetToken,
+        passwordResetExpires: resetExpires,
+      },
+    });
+
+    this.loggingService.logInfo('Password reset token generated', {
+      userId: user.id,
+      email: user.email,
+    });
+
+    return { token: resetToken };
+  }
+
+  async findByResetToken(token: string) {
+    return this.prisma.user.findFirst({
+      where: {
+        passwordResetToken: token,
+        passwordResetExpires: {
+          gt: new Date(), // Token must not be expired
+        },
+      },
+    });
+  }
+
+  async resetPassword(token: string, newPassword: string) {
+    const user = await this.findByResetToken(token);
+
+    if (!user) {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password and clear reset token fields
+    const updatedUser = await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        passwordResetToken: null,
+        passwordResetExpires: null,
+        tokenVersion: user.tokenVersion + 1, // Invalidate existing sessions
+      },
+      select: {
+        id: true,
+        name: true,
+        surname: true,
+        email: true,
+        profile_picture_url: true,
+        tokenVersion: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    this.loggingService.logInfo('Password reset completed successfully', {
+      userId: user.id,
+      email: user.email,
+    });
+
+    return {
+      ...updatedUser,
+      profilePictureUrl: updatedUser.profile_picture_url,
+      profile_picture_url: undefined,
+    };
+  }
+
+  async clearPasswordResetToken(userId: string) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordResetToken: null,
+        passwordResetExpires: null,
+      },
+    });
+  }
+
+  async clearPasswordResetTokenByEmail(email: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+
+    if (user) {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          passwordResetToken: null,
+          passwordResetExpires: null,
+        },
+      });
     }
   }
 }
