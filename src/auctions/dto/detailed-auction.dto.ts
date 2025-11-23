@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { BidderDto, BidDto } from './bid.dto';
+import { BidDto } from './bid.dto';
 
 export class SellerDto {
   @ApiProperty({

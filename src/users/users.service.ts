@@ -13,9 +13,9 @@ import { v4 as uuidv4 } from 'uuid';
 @Injectable()
 export class UsersService {
   constructor(
-    private prisma: PrismaService,
-    private fileUploadService: FileUploadService,
-    private loggingService: LoggingService,
+    private readonly prisma: PrismaService,
+    private readonly fileUploadService: FileUploadService,
+    private readonly loggingService: LoggingService,
   ) {}
 
   async findById(id: string) {
@@ -226,7 +226,6 @@ export class UsersService {
   }
 
   async updateProfilePicture(userId: string, file: Express.Multer.File) {
-    // Validate input parameters
     if (!userId || typeof userId !== 'string') {
       throw new BadRequestException('Invalid user ID provided');
     }
@@ -238,22 +237,18 @@ export class UsersService {
     let savedFileName: string | null = null;
 
     try {
-      // Save the profile picture and get the URL
       const profilePictureUrl = await this.fileUploadService.saveProfilePicture(
         userId,
         file,
       );
 
-      // Extract filename from URL for cleanup
       const urlParts = profilePictureUrl.split('/');
       savedFileName = urlParts[urlParts.length - 1];
 
-      // Update user's profile picture URL in database
       const updatedUser = await this.updateUser(userId, {
         profilePictureUrl,
       });
 
-      // Clean up old profile pictures after successful database update
       await this.fileUploadService.cleanupOldProfilePictures(userId, savedFileName);
 
       return {
@@ -263,7 +258,6 @@ export class UsersService {
       };
 
     } catch (error) {
-      // If database update failed, clean up the newly saved file
       if (savedFileName) {
         try {
           const filePath = `./uploads/profile-pictures/${savedFileName}`;
@@ -271,27 +265,22 @@ export class UsersService {
             fs.unlinkSync(filePath);
           }
         } catch (cleanupError) {
-          // Log but don't throw cleanup errors
           console.error('Failed to cleanup file after database error:', cleanupError);
         }
       }
 
-      // Re-throw the original error
       throw error;
     }
   }
 
   async removeProfilePicture(userId: string) {
-    // Validate input parameters
     if (!userId || typeof userId !== 'string') {
       throw new BadRequestException('Invalid user ID provided');
     }
 
     try {
-      // Delete the profile picture file
       await this.fileUploadService.deleteProfilePicture(userId);
 
-      // Update user's profile picture URL in database to null
       const updatedUser = await this.updateUser(userId, {
         profilePictureUrl: null,
       });
@@ -306,12 +295,10 @@ export class UsersService {
         userId,
       });
 
-      // If it's a BadRequestException, re-throw it as-is
       if (error instanceof BadRequestException) {
         throw error;
       }
 
-      // For other errors, wrap them in a BadRequestException
       throw new BadRequestException('Failed to remove profile picture');
     }
   }
@@ -322,12 +309,11 @@ export class UsersService {
     });
 
     if (!user) {
-      // Return null if user doesn't exist to prevent user enumeration
       return null;
     }
 
     const resetToken = uuidv4();
-    const resetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
+    const resetExpires = new Date(Date.now() + 60 * 60 * 1000);
 
     await this.prisma.user.update({
       where: { id: user.id },
@@ -350,7 +336,7 @@ export class UsersService {
       where: {
         passwordResetToken: token,
         passwordResetExpires: {
-          gt: new Date(), // Token must not be expired
+          gt: new Date(),
         },
       },
     });
@@ -365,14 +351,13 @@ export class UsersService {
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    // Update password and clear reset token fields
     const updatedUser = await this.prisma.user.update({
       where: { id: user.id },
       data: {
         password: hashedPassword,
         passwordResetToken: null,
         passwordResetExpires: null,
-        tokenVersion: user.tokenVersion + 1, // Invalidate existing sessions
+        tokenVersion: user.tokenVersion + 1,
       },
       select: {
         id: true,

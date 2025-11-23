@@ -14,8 +14,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiResponse, ApiBody, ApiConsumes } from '@nestjs/swagger';
-import { ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiResponse, ApiBody, ApiConsumes, ApiBearerAuth } from '@nestjs/swagger';
 import { UserDto } from './dto/user.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
@@ -36,9 +35,9 @@ import { LoggingService } from '../common/services/logging.service';
 @Controller({ path: 'users', version: '1' })
 export class UsersController {
   constructor(
-    private usersService: UsersService,
-    private statisticsService: StatisticsService,
-    private loggingService: LoggingService,
+    private readonly usersService: UsersService,
+    private readonly statisticsService: StatisticsService,
+    private readonly loggingService: LoggingService,
   ) {}
 
   @Get('me')
@@ -90,7 +89,6 @@ export class UsersController {
     });
 
     try {
-      // Check if email is already taken by another user
       if (updateProfileDto.email !== req.user.email) {
         const existingUser = await this.usersService.findByEmail(updateProfileDto.email);
         if (existingUser && existingUser.id !== req.user.id) {
@@ -225,7 +223,7 @@ export class UsersController {
           fileType: /(jpeg|jpg|png|webp)$/,
         })
         .addMaxSizeValidator({
-          maxSize: 5 * 1024 * 1024, // 5MB
+          maxSize: 5 * 1024 * 1024,
         })
         .build({
           errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,

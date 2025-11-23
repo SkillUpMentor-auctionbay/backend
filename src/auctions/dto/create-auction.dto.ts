@@ -23,7 +23,7 @@ export class CreateAuctionDto {
 
   @ApiProperty({
     description: 'The starting price of the auction',
-    example: 100.00,
+    example: 100,
     type: Number,
   })
   @IsNotEmpty()
@@ -31,8 +31,8 @@ export class CreateAuctionDto {
   startingPrice: number;
 
   @ApiProperty({
-    description: 'The end date and time of the auction',
-    example: '2024-12-31T23:59:59.000Z',
+    description: 'The end date and time of the auction (always ends at midnight UTC)',
+    example: '2024-12-31T00:00:00.000Z',
     type: Date,
   })
   @IsDate()

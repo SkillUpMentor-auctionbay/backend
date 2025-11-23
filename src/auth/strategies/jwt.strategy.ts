@@ -7,8 +7,8 @@ import { UsersService } from '../../users/users.service';
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(
-    private configService: ConfigService,
-    private usersService: UsersService,
+    private readonly configService: ConfigService,
+    private readonly usersService: UsersService,
   ) {
     const secret = configService.get<string>('JWT_SECRET');
     if (!secret) {
@@ -33,7 +33,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('User not found');
     }
 
-    // Check if the token version matches the user's current token version
     if (user.tokenVersion !== payload.tokenVersion) {
       throw new UnauthorizedException('Token has been invalidated');
     }

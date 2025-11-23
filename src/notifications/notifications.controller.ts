@@ -17,16 +17,15 @@ import { SseService } from './sse.service';
 import { LoggingService } from '../common/services/logging.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SseAuthGuard } from '../auth/guards/sse-auth.guard';
-import { NotificationDto } from './dto/notification.dto';
 import { NotificationQueryDto } from './dto/notification-query.dto';
 
 @ApiTags('notifications')
 @Controller({ path: 'notifications', version: '1' })
 export class NotificationsController {
   constructor(
-    private notificationsService: NotificationsService,
-    private sseService: SseService,
-    private loggingService: LoggingService,
+    private readonly notificationsService: NotificationsService,
+    private readonly sseService: SseService,
+    private readonly loggingService: LoggingService,
   ) {}
 
   @Get()
@@ -50,20 +49,9 @@ export class NotificationsController {
     },
   })
   async getUserNotifications(@Request() req, @Query() queryDto: NotificationQueryDto) {
-    // 🚨 SECURITY FIX: Use 'id' instead of 'userId' from JWT payload
     const userId = req.user.id;
 
-    // SECURITY DEBUG: Log what user is making the request
-    console.log('🔐 SECURITY DEBUG - getUserNotifications called:', {
-      userId,
-      hasUser: !!req.user,
-      userKeys: req.user ? Object.keys(req.user) : 'no user object',
-      authorization: req.headers.authorization ? 'present' : 'missing',
-      query: queryDto,
-    });
-
     if (!userId) {
-      console.error('🚨 SECURITY ALERT - No user ID found in request!');
       throw new UnauthorizedException('User not authenticated');
     }
 
@@ -73,13 +61,6 @@ export class NotificationsController {
     });
 
     const result = await this.notificationsService.getUserNotifications(userId, queryDto);
-
-    // SECURITY DEBUG: Log what notifications are being returned
-    console.log('📊 SECURITY DEBUG - Notifications being returned:', {
-      requestedUserId: userId,
-      notificationCount: result.notifications.length,
-      notificationIds: result.notifications.map(n => n.id),
-    });
 
     return {
       statusCode: HttpStatus.OK,
@@ -125,29 +106,36 @@ export class NotificationsController {
   ) {
     const userId = req.user.id;
 
-    this.loggingService.logInfo('Starting notification stream', { userId, lastEventId });
+    this.loggingService.logInfo('Starting notification stream', {
+      userId,
+      lastEventId,
+      hasToken: !!token,
+      origin: req.headers.origin,
+      userAgent: req.headers['user-agent']
+    });
 
-    // Set SSE headers
+    const corsOrigin = process.env.FRONTEND_URL || 'http://localhost:3000';
+
     response.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
-      'Access-Control-Allow-Origin': 'http://localhost:3000',
+      'Access-Control-Allow-Origin': corsOrigin,
       'Access-Control-Allow-Headers': 'Cache-Control, Authorization, Last-Event-ID',
       'Access-Control-Allow-Credentials': 'true',
     });
 
-    // Add connection to SSE service
-    console.log('🔌 Adding SSE connection for user:', userId);
     this.sseService.addConnection(userId, response);
 
-    // Listen for client disconnect
     req.on('close', () => {
       this.loggingService.logInfo('Client disconnected from notification stream', { userId });
       this.sseService.removeConnection(userId, response);
     });
 
-    // Send recent notifications if this is a reconnection
+    response.on('error', (error) => {
+      this.loggingService.logError('SSE response error', error, { userId });
+    });
+
     if (lastEventId) {
       try {
         const recentNotifications = await this.notificationsService.getUserNotifications(userId, {
@@ -166,9 +154,8 @@ export class NotificationsController {
       }
     }
 
-    // Handle connection errors
     response.on('error', (error) => {
-      this.loggingService.logError('SSE connection error', error as Error, {
+      this.loggingService.logError('SSE connection error', error, {
         userId,
       });
       this.sseService.removeConnection(userId, response);

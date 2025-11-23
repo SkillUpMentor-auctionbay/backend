@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsDateString, IsNumber, IsEnum, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateNotificationDto {
@@ -23,7 +23,7 @@ export class CreateNotificationDto {
 
   @ApiProperty({
     description: 'The price of the notification - null for outbid, number for won notifications',
-    example: 150.00,
+    example: 150,
     type: Number,
     required: false,
     nullable: true,

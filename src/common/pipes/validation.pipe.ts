@@ -11,7 +11,7 @@ import { LoggingService, LogContext } from '../services/logging.service';
 
 @Injectable()
 export class ValidationPipe implements PipeTransform<any> {
-  constructor(private loggingService: LoggingService) {}
+  constructor(private readonly loggingService: LoggingService) {}
 
   async transform(value: any, { metatype }: ArgumentMetadata) {
     if (!metatype || !this.toValidate(metatype)) {

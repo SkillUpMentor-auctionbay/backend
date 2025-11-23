@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Subject, Observable } from 'rxjs';
 import { filter } from 'rxjs/operators';
 import { NotificationDto } from './dto/notification.dto';
@@ -12,15 +12,11 @@ export interface SseConnection {
 
 @Injectable()
 export class SseService {
-  private connections: Map<string, SseConnection[]> = new Map();
-  private notificationSubject = new Subject<{ userId: string; notification: NotificationDto }>();
-  private logger = new Logger(SseService.name);
+  private readonly connections: Map<string, SseConnection[]> = new Map();
+  private readonly notificationSubject = new Subject<{ userId: string; notification: NotificationDto }>();
 
-  constructor(private loggingService: LoggingService) {}
+  constructor(private readonly loggingService: LoggingService) {}
 
-  /**
-   * Add a new SSE connection for a user
-   */
   addConnection(userId: string, response: any): void {
     this.loggingService.logInfo('Adding SSE connection', { userId });
 
@@ -34,20 +30,20 @@ export class SseService {
       this.connections.set(userId, []);
     }
 
-    this.connections.get(userId)!.push(connection);
+    this.connections.get(userId).push(connection);
 
-    // Send initial connection event
     this.sendToConnection(connection, {
       event: 'connected',
       data: { message: 'Connected to notifications stream', timestamp: new Date().toISOString() },
     });
 
-    this.logger.log(`SSE connection added for user ${userId}. Total connections: ${this.connections.get(userId)?.length}`);
+    this.loggingService.logInfo('SSE connection added for user', {
+      userId,
+      totalConnections: this.connections.get(userId)?.length || 0,
+    });
   }
 
-  /**
-   * Remove an SSE connection
-   */
+
   removeConnection(userId: string, response: any): void {
     this.loggingService.logInfo('Removing SSE connection', { userId });
 
@@ -64,137 +60,97 @@ export class SseService {
       }
     }
 
-    this.logger.log(`SSE connection removed for user ${userId}. Total connections: ${this.connections.get(userId)?.length || 0}`);
+    this.loggingService.logInfo('SSE connection removed for user', {
+      userId,
+      totalConnections: this.connections.get(userId)?.length || 0,
+    });
   }
 
-  /**
-   * Broadcast a notification to a specific user
-   */
-  broadcastNotification(userId: string, notification: NotificationDto): void {
-    console.log('📢 SSE Broadcast called for user:', userId, 'notification:', notification.id);
-    console.log('📊 Active connections count:', this.getTotalConnections());
-    console.log('👤 User specific connections:', this.getConnectionCount(userId));
 
+  broadcastNotification(userId: string, notification: NotificationDto): void {
     this.loggingService.logInfo('Broadcasting notification via SSE', {
       userId,
       notificationId: notification.id,
       type: notification.price ? 'won' : 'outbid',
     });
 
-    // Check if user has active connections
-    const userConnections = this.connections.get(userId);
-    const connectionCount = userConnections ? userConnections.length : 0;
-    console.log('🔗 User connections found:', connectionCount, 'for user:', userId);
+    const standardizedEvent = {
+      userId,
+      notification,
+      timestamp: new Date().toISOString(),
+      eventType: notification.price ? 'auction_won' : 'outbid'
+    };
 
-    // Emit to the subject for SSE streaming
-    this.notificationSubject.next({ userId, notification });
-    console.log('✅ Notification emitted to subject');
+    this.notificationSubject.next(standardizedEvent);
 
-    // Also directly send to connected clients
     this.sendToUserConnections(userId, {
       event: 'notification',
-      data: notification,
+      data: standardizedEvent
     });
-    console.log('✅ Direct send to connections completed');
   }
 
-  /**
-   * Get observable stream for a user's notifications
-   */
+
   getNotificationStream(userId: string): Observable<{ userId: string; notification: NotificationDto }> {
     return this.notificationSubject.asObservable().pipe(filter(event => event.userId === userId));
   }
 
-  /**
-   * Send data to a specific connection
-   */
-  private sendToConnection(connection: SseConnection, data: any): void {
-    console.log('📡 sendToConnection called for user:', connection.userId, 'isConnected:', connection.isConnected);
 
+  private sendToConnection(connection: SseConnection, data: any): void {
     if (!connection.isConnected) {
-      console.log('❌ Connection not active, skipping:', connection.userId);
       return;
     }
 
     try {
-      console.log('📝 Preparing SSE data for user:', connection.userId);
-      console.log('📦 Final SSE payload:', JSON.stringify(data, null, 2));
-
       if (data.event) {
         connection.response.write(`event: ${data.event}\n`);
-        console.log('✅ Event written:', data.event);
       }
 
       const dataString = JSON.stringify(data.data);
-      console.log('📄 Data string to write:', dataString);
       connection.response.write(`data: ${dataString}\n\n`);
-      console.log('✅ Data written successfully for user:', connection.userId);
 
-      // Force flush the response to ensure immediate delivery
       connection.response.flush && connection.response.flush();
-      console.log('🚀 Response flushed for user:', connection.userId);
 
     } catch (error) {
-      console.log('💥 Failed to send SSE data for user:', connection.userId, error);
       this.loggingService.logError('Failed to send SSE data', error as Error, {
         userId: connection.userId,
       });
-      // Mark connection as disconnected
       connection.isConnected = false;
     }
   }
 
-  /**
-   * Send data to all connections for a specific user
-   */
-  private sendToUserConnections(userId: string, data: any): void {
-    console.log('📡 sendToUserConnections called for user:', userId);
-    console.log('📦 Data to send:', JSON.stringify(data, null, 2));
 
+  private sendToUserConnections(userId: string, data: any): void {
     const userConnections = this.connections.get(userId);
     if (!userConnections) {
-      console.log('❌ No connections found for user:', userId);
-      console.log('👥 Currently connected users:', Array.from(this.connections.keys()));
       return;
     }
 
-    console.log('🔗 Found', userConnections.length, 'connections for user:', userId);
-
-    // Handle different data formats:
-    // - If data has .event and .data properties, use as-is
-    // - If data is a notification object, wrap it properly
     let ssePayload = data;
-    if (!data.event && !data.data) {
-      // This is a raw notification, wrap it for SSE
+
+    if (!data.event || !data.data) {
       ssePayload = {
         event: 'notification',
-        data: data
+        data: {
+          userId,
+          notification: data.notification || data,
+          timestamp: new Date().toISOString(),
+          eventType: (data.notification?.price || data?.price) ? 'auction_won' : 'outbid'
+        }
       };
     }
 
-    console.log('🎯 Final SSE payload:', JSON.stringify(ssePayload, null, 2));
-
-    userConnections.forEach((connection, index) => {
-      console.log(`📤 Sending to connection ${index}:`, {
-        isConnected: connection.isConnected,
-        userId: connection.userId
-      });
+    userConnections.forEach((connection) => {
       this.sendToConnection(connection, ssePayload);
     });
-    console.log('✅ All connections processed for user:', userId);
   }
 
-  /**
-   * Get active connection count for a user
-   */
+
   getConnectionCount(userId: string): number {
     const userConnections = this.connections.get(userId);
     return userConnections ? userConnections.filter(conn => conn.isConnected).length : 0;
   }
 
-  /**
-   * Get total active connections
-   */
+
   getTotalConnections(): number {
     let total = 0;
     this.connections.forEach(userConnections => {

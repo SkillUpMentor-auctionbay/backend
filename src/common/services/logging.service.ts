@@ -5,6 +5,13 @@ export interface LogContext {
   username?: string;
   email?: string;
   token?: string;
+  targetUserId?: string;
+  requestedBy?: string;
+  hasToken?: boolean;
+  customMessage?: string;
+  totalConnections?: number;
+  connectedUsers?: number;
+  origin?: string;
   ip?: string;
   userAgent?: string;
   requestId?: string;

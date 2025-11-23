@@ -1,5 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { Express } from 'express';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
 import { LoggingService, LogContext } from './logging.service';
@@ -10,7 +9,7 @@ export class FileUploadService {
   private readonly profilePicturesDir = path.join(this.uploadsDir, 'profile-pictures');
   private readonly auctionImagesDir = path.join(this.uploadsDir, 'auction-images');
 
-  constructor(private loggingService: LoggingService) {
+  constructor(private readonly loggingService: LoggingService) {
     this.ensureDirectoriesExist();
   }
 

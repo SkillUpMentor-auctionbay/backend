@@ -18,8 +18,8 @@ import { mapUserToBidderDto } from './utils/user-mapping.util';
 @Injectable()
 export class BidsService {
   constructor(
-    private prisma: PrismaService,
-    private loggingService: LoggingService,
+    private readonly prisma: PrismaService,
+    private readonly loggingService: LoggingService,
   ) {}
 
   async placeBid(auctionId: string, bidderId: string, placeBidDto: PlaceBidDto): Promise<BidDto> {

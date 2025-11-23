@@ -2,18 +2,16 @@ import {
   Injectable,
   OnModuleInit,
   OnModuleDestroy,
-  Logger,
 } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
+import { LoggingService } from '../common/services/logging.service';
 
 @Injectable()
 export class PrismaService
   extends PrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
-  private readonly logger = new Logger(PrismaService.name);
-
-  constructor() {
+  constructor(private readonly loggingService: LoggingService) {
     super({
       log: [
         {
@@ -39,27 +37,36 @@ export class PrismaService
   async onModuleInit() {
     try {
       await this.$connect();
-      this.logger.log('Database connection established successfully');
+      this.loggingService.logInfo('Database connection established successfully');
 
       this.$on('query', (e) => {
-        this.logger.debug(`Query: ${e.query}`);
-        this.logger.debug(`Params: ${e.params}`);
-        this.logger.debug(`Duration: ${e.duration}ms`);
+        this.loggingService.logDebug('Database query executed', {
+          query: { query: e.query, params: e.params },
+          duration: e.duration,
+        });
       });
 
       this.$on('error', (e) => {
-        this.logger.error(`Database error: ${e.message}`);
+        this.loggingService.logError('Database error', new Error(e.message), {
+          customMessage: `Target: ${e.target}`,
+        });
       });
 
       this.$on('info', (e) => {
-        this.logger.log(`Database info: ${e.message}`);
+        this.loggingService.logInfo('Database info', {
+          message: e.message,
+          customMessage: `Target: ${e.target}`,
+        });
       });
 
       this.$on('warn', (e) => {
-        this.logger.warn(`Database warning: ${e.message}`);
+        this.loggingService.logWarning('Database warning', {
+          message: e.message,
+          customMessage: `Target: ${e.target}`,
+        });
       });
     } catch (error) {
-      this.logger.error('Failed to connect to database', error);
+      this.loggingService.logError('Failed to connect to database', error as Error);
       throw error;
     }
   }
@@ -67,9 +74,9 @@ export class PrismaService
   async onModuleDestroy() {
     try {
       await this.$disconnect();
-      this.logger.log('Database connection closed');
+      this.loggingService.logInfo('Database connection closed');
     } catch (error) {
-      this.logger.error('Error closing database connection', error);
+      this.loggingService.logError('Error closing database connection', error as Error);
     }
   }
 
@@ -78,13 +85,13 @@ export class PrismaService
       await this.$queryRaw`SELECT 1`;
       return true;
     } catch (error) {
-      this.logger.error('Database health check failed', error);
+      this.loggingService.logError('Database health check failed', error as Error);
       return false;
     }
   }
 
   async shutdown(): Promise<void> {
-    this.logger.log('Initiating graceful shutdown of database connection...');
+    this.loggingService.logInfo('Initiating graceful shutdown of database connection...');
     await this.onModuleDestroy();
   }
 }

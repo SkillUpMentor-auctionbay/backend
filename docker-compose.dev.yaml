@@ -19,7 +19,7 @@ services:
       retries: 5
   
   prisma-studio:
-    image: node:lts-alpine3.17
+    image: node:20-alpine3.18
     container_name: prisma-studio
     restart: unless-stopped
     env_file:
@@ -34,8 +34,15 @@ services:
         condition: service_healthy
     volumes:
       - ./prisma:/app/prisma
+      - ./package.json:/app/package.json
+      - ./package-lock.json:/app/package-lock.json
+      - ./node_modules:/app/node_modules
     working_dir: /app
-    command: npx prisma studio --hostname 0.0.0.0 --port 5555
+    command: >
+      sh -c "
+      npx prisma generate &&
+      npx prisma studio --hostname 0.0.0.0 --port 5555
+      "
 
   backend:
     build: .

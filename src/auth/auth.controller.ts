@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   Request,
+  UseGuards
 } from '@nestjs/common';
 import { ApiTags, ApiBody, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
@@ -14,12 +15,11 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerifyResetTokenDto } from './dto/verify-reset-token.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { UseGuards } from '@nestjs/common';
 
 @ApiTags('auth')
 @Controller({ path: 'auth', version: '1' })
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(private readonly authService: AuthService) {}
 
   @Post('login')
   @HttpCode(HttpStatus.OK)

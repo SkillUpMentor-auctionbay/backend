@@ -35,10 +35,10 @@ import { FileUploadErrorDto } from '../users/dto/change-profile-picture.dto';
 @Controller({ path: 'auctions', version: '1' })
 export class AuctionController {
   constructor(
-    private auctionService: AuctionService,
-    private loggingService: LoggingService,
-    private fileUploadService: FileUploadService,
-    private prisma: PrismaService,
+    private readonly auctionService: AuctionService,
+    private readonly loggingService: LoggingService,
+    private readonly fileUploadService: FileUploadService,
+    private readonly prisma: PrismaService,
   ) {}
 
 

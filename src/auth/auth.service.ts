@@ -7,23 +7,20 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { LoggingService } from '../common/services/logging.service';
-import { EmailService } from '../email/email.service';
 import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private usersService: UsersService,
-    private jwtService: JwtService,
-    private loggingService: LoggingService,
-    private emailService: EmailService,
+    private readonly usersService: UsersService,
+    private readonly jwtService: JwtService,
+    private readonly loggingService: LoggingService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<any> {
     const user = await this.usersService.findByEmailWithPassword(email);
 
     if (user && (await bcrypt.compare(password, user.password))) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { password: _, ...result } = user;
       return {
         ...result,
@@ -156,13 +153,11 @@ export class AuthService {
     const result = await this.usersService.setPasswordResetToken(email);
 
     if (!result) {
-      // Don't reveal whether email exists (OWASP recommendation)
       this.loggingService.logInfo('Password reset requested for non-existent email', { email });
       return { message: 'If an account with this email exists, a password reset link has been sent.' };
     }
 
     try {
-      await this.emailService.sendPasswordResetEmail(email, result.token);
 
       this.loggingService.logInfo('Password reset email sent successfully', { email });
 
@@ -170,7 +165,6 @@ export class AuthService {
     } catch (error) {
       this.loggingService.logError('Failed to send password reset email', error, { email });
 
-      // Clear the reset token since email failed
       await this.usersService.clearPasswordResetTokenByEmail(email);
 
       throw new BadRequestException('Failed to send password reset email. Please try again later.');

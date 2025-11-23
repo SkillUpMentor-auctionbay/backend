@@ -11,8 +11,8 @@ import {
 @Injectable()
 export class StatisticsService {
   constructor(
-    private prisma: PrismaService,
-    private loggingService: LoggingService,
+    private readonly prisma: PrismaService,
+    private readonly loggingService: LoggingService,
   ) {}
 
 

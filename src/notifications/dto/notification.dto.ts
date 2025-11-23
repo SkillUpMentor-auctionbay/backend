@@ -41,7 +41,7 @@ export class NotificationDto {
 
   @ApiProperty({
     description: 'The price of the notification - null for outbid, number for won notifications',
-    example: 150.00,
+    example: 150,
     type: Number,
     required: false,
     nullable: true,

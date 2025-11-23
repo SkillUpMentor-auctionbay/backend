@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoggingService } from '../common/services/logging.service';
 import { SseService } from './sse.service';
@@ -9,15 +9,12 @@ import { NotificationQueryDto } from './dto/notification-query.dto';
 @Injectable()
 export class NotificationsService {
   constructor(
-    private prisma: PrismaService,
-    private loggingService: LoggingService,
-    private sseService: SseService,
+    private readonly prisma: PrismaService,
+    private readonly loggingService: LoggingService,
+    private readonly sseService: SseService,
   ) {}
 
-  /**
-   * Create a notification when an auction ends
-   * price = null -> outbid, price = number -> won with final price
-   */
+
   async createNotification(createNotificationDto: CreateNotificationDto): Promise<NotificationDto> {
     const { userId, auctionId, price } = createNotificationDto;
 
@@ -29,7 +26,6 @@ export class NotificationsService {
     });
 
     try {
-      // First, delete any existing notifications for this user+auction
       await this.prisma.notification.deleteMany({
         where: {
           userId,
@@ -42,7 +38,6 @@ export class NotificationsService {
         auctionId,
       });
 
-      // Create the new notification
       const notification = await this.prisma.notification.create({
         data: {
           userId,
@@ -71,10 +66,7 @@ export class NotificationsService {
 
       const notificationDto = this.mapToDto(notification);
 
-      // Broadcast via SSE for real-time updates
-      console.log('📡 Broadcasting SSE notification for user:', userId, notificationDto);
       this.sseService.broadcastNotification(userId, notificationDto);
-      console.log('✅ SSE broadcast completed');
 
       return notificationDto;
     } catch (error) {
@@ -87,9 +79,6 @@ export class NotificationsService {
     }
   }
 
-  /**
-   * Get all notifications for a user with optional filtering
-   */
   async getUserNotifications(
     userId: string,
     queryDto: NotificationQueryDto
@@ -107,12 +96,6 @@ export class NotificationsService {
       const where = {
         userId,
       };
-
-      // SECURITY DEBUG: Log the exact query being executed
-      console.log('🗄️  SECURITY DEBUG - Database query:', {
-        whereClause: where,
-        userId,
-      });
 
       const [notifications, total] = await Promise.all([
         this.prisma.notification.findMany({
@@ -136,14 +119,6 @@ export class NotificationsService {
         this.prisma.notification.count({ where }),
       ]);
 
-      // SECURITY DEBUG: Log what was actually retrieved from database
-      console.log('📋 SECURITY DEBUG - Database results:', {
-        requestedUserId: userId,
-        rawNotificationCount: notifications.length,
-        rawNotificationUserIds: notifications.map(n => ({ id: n.id, userId: n.userId })),
-        total,
-      });
-
       const notificationDtos = notifications.map(notification =>
         this.mapToDto(notification)
       );
@@ -160,9 +135,6 @@ export class NotificationsService {
     }
   }
 
-  /**
-   * Clear all notifications for a user by deleting them permanently
-   */
   async clearAllNotifications(userId: string): Promise<void> {
     this.loggingService.logInfo('Clearing all notifications for user', { userId });
 
@@ -185,13 +157,11 @@ export class NotificationsService {
     }
   }
 
-  /**
-   * Helper method to map Prisma notification entity to DTO
-   */
+
   private mapToDto(notification: any): NotificationDto {
     return {
       id: notification.id,
-      price: notification.price ? parseFloat(notification.price.toString()) : null,
+      price: notification.price ? Number.parseFloat(notification.price.toString()) : null,
       createdAt: notification.createdAt.toISOString(),
       auction: {
         id: notification.auction.id,
