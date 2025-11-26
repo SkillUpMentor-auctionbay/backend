@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { LoggingService } from '../services/logging.service';
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {

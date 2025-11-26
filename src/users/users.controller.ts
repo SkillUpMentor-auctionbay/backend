@@ -313,7 +313,7 @@ export class UsersController {
 
     const sanitized = filename
       .replaceAll(/[\\/]/g, '_') // Replace path separators
-      .replaceAll(/\.\./g, '_') // Replace directory traversal attempts
+      .replaceAll('..', '_') // Replace directory traversal attempts
       .replaceAll(/[<>:"|?*]/g, '_') // Replace Windows forbidden characters
       .replaceAll(/^\.+/, '') // Remove leading dots
       .trim();

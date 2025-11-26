@@ -2,13 +2,14 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { LoggingService, LogContext } from './logging.service';
-import { randomUUID } from 'crypto';
+import { randomUUID } from 'node:crypto';
 
 @Injectable()
 export class FileUploadService {
   private readonly uploadsDir = './uploads';
   private readonly profilePicturesDir = path.join(this.uploadsDir, 'profile-pictures');
   private readonly auctionImagesDir = path.join(this.uploadsDir, 'auction-images');
+  private readonly allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
 
   constructor(private readonly loggingService: LoggingService) {
     this.ensureDirectoriesExist();
@@ -51,13 +52,41 @@ export class FileUploadService {
   }
 
 
+  private validateFileExtension(originalName: string): string {
+    const fileExtension = path.extname(originalName).toLowerCase();
+
+    if (!this.allowedExtensions.includes(fileExtension)) {
+      throw new BadRequestException(
+        `File extension ${fileExtension} is not allowed. Allowed extensions: ${this.allowedExtensions.join(', ')}`
+      );
+    }
+
+    return fileExtension;
+  }
+
+  private toError(error: unknown): Error {
+    if (error instanceof Error) {
+      return error;
+    }
+    
+    if (typeof error === 'string') {
+      return new Error(error);
+    }
+    
+    if (error && typeof error === 'object') {
+      return new Error(JSON.stringify(error));
+    }
+    
+    return new Error('Unknown error occurred');
+  }
+
   async saveProfilePicture(
     userId: string,
     file: Express.Multer.File,
   ): Promise<string> {
     this.validateProfilePictureInput(userId, file);
 
-    const fileExtension = this.validateAndGetFileExtension(file.originalname);
+    const fileExtension = this.validateFileExtension(file.originalname);
     const oldFiles = await this.getUserProfilePictureFiles(userId);
 
     let newFilePath: string | null = null;
@@ -94,19 +123,6 @@ export class FileUploadService {
     if (!file?.buffer || !file?.originalname) {
       throw new BadRequestException('Invalid file provided');
     }
-  }
-
-  private validateAndGetFileExtension(originalName: string): string {
-    const fileExtension = path.extname(originalName).toLowerCase();
-    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
-
-    if (!allowedExtensions.includes(fileExtension)) {
-      throw new BadRequestException(
-        `File extension ${fileExtension} is not allowed. Allowed extensions: ${allowedExtensions.join(', ')}`
-      );
-    }
-
-    return fileExtension;
   }
 
   private async getUserProfilePictureFiles(userId: string): Promise<string[]> {
@@ -167,7 +183,7 @@ export class FileUploadService {
   ): BadRequestException {
     this.loggingService.logError(
       'Failed to save profile picture',
-      error instanceof Error ? error : new Error(String(error)),
+      this.toError(error),
       {
         userId,
         fileName: file.originalname,
@@ -273,7 +289,6 @@ export class FileUploadService {
     }
   }
 
-
   async getProfilePictureUrl(userId: string): Promise<string | null> {
     try {
       const files = fs.readdirSync(this.profilePicturesDir);
@@ -295,7 +310,6 @@ export class FileUploadService {
       return null;
     }
   }
-
 
   async cleanupUserProfilePictures(userIds: string[]): Promise<void> {
     try {
@@ -325,7 +339,6 @@ export class FileUploadService {
       );
     }
   }
-
 
   async getStorageStats(): Promise<{
     totalFiles: number;
@@ -364,7 +377,7 @@ export class FileUploadService {
   async saveAuctionImage(file: Express.Multer.File): Promise<string> {
     this.validateAuctionImageInput(file);
 
-    const fileExtension = this.validateAuctionImageExtension(file.originalname);
+    const fileExtension = this.validateFileExtension(file.originalname);
     const fileName = this.generateUniqueFileName(fileExtension);
     const filePath = path.join(this.auctionImagesDir, fileName);
 
@@ -390,19 +403,6 @@ export class FileUploadService {
     if (!file?.buffer || !file?.originalname) {
       throw new BadRequestException('Invalid file provided');
     }
-  }
-
-  private validateAuctionImageExtension(originalName: string): string {
-    const fileExtension = path.extname(originalName).toLowerCase();
-    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
-
-    if (!allowedExtensions.includes(fileExtension)) {
-      throw new BadRequestException(
-        `File extension ${fileExtension} is not allowed. Allowed extensions: ${allowedExtensions.join(', ')}`
-      );
-    }
-
-    return fileExtension;
   }
 
   private generateUniqueFileName(fileExtension: string): string {
@@ -444,7 +444,7 @@ export class FileUploadService {
   ): BadRequestException {
     this.loggingService.logError(
       'Failed to save auction image',
-      error instanceof Error ? error : new Error(String(error)),
+      this.toError(error),
       {
         fileName: file.originalname,
         fileSize: file.size,
@@ -459,14 +459,13 @@ export class FileUploadService {
     return new BadRequestException('Failed to save auction image');
   }
 
-
   async deleteAuctionImage(imageUrl: string): Promise<void> {
     if (!imageUrl || typeof imageUrl !== 'string') {
       throw new BadRequestException('Invalid image URL provided');
     }
 
     try {
-      const fileName = imageUrl.split('/').pop();
+      const fileName = imageUrl.split('/').at(-1);
       if (!fileName) {
         throw new BadRequestException('Invalid image URL format');
       }
@@ -502,11 +501,10 @@ export class FileUploadService {
     }
   }
 
-
   async cleanupOrphanedAuctionImages(existingImageUrls: string[]): Promise<void> {
     try {
       const files = fs.readdirSync(this.auctionImagesDir);
-      const existingFileNames = new Set(existingImageUrls.map(url => url.split('/').pop()));
+      const existingFileNames = new Set(existingImageUrls.map(url => url.split('/').at(-1)));
 
       for (const file of files) {
         if (!existingFileNames.has(file)) {
