@@ -64,14 +64,14 @@ export class DetailedAuctionDto {
 
   @ApiProperty({
     description: 'The starting price of the auction',
-    example: 100.00,
+    example: 100,
     type: Number,
   })
   startingPrice: number;
 
   @ApiProperty({
     description: 'The current price of the auction (highest bid or starting price)',
-    example: 150.00,
+    example: 150,
     type: Number,
   })
   currentPrice: number;
@@ -93,7 +93,7 @@ export class DetailedAuctionDto {
 
   @ApiProperty({
     description: 'The current user bid amount (only if user has bid)',
-    example: 125.00,
+    example: 125,
     type: Number,
     required: false,
   })

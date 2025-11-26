@@ -41,7 +41,7 @@ export class BidDto {
 
   @ApiProperty({
     description: 'The bid amount',
-    example: 125.50,
+    example: 125.5,
     type: Number,
   })
   amount: number;

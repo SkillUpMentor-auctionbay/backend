@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { LoggingService } from '../services/logging.service';
+import { randomUUID } from 'crypto';
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -67,7 +68,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
       path: request.url,
       method: request.method,
       ...(Object.keys(details).length > 0 && { details }),
-      requestId: this.generateRequestId(),
+      requestId: randomUUID(),
     };
 
     if (process.env.NODE_ENV === 'development' && exception instanceof Error) {
@@ -96,12 +97,5 @@ export class HttpExceptionFilter implements ExceptionFilter {
       default:
         return 'Error';
     }
-  }
-
-  private generateRequestId(): string {
-    return (
-      Math.random().toString(36).substring(2, 15) +
-      Math.random().toString(36).substring(2, 15)
-    );
   }
 }

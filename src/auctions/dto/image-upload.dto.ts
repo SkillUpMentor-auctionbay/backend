@@ -12,7 +12,7 @@ export class ImageUploadResponseDto {
     description: 'The accessible URL of the uploaded image',
     example: '/static/auction-images/auction_abc123.jpg',
     type: String,
-    pattern: '^/static/auction-images/[a-zA-Z0-9_-]+\\.(jpg|jpeg|png|webp)$',
+    pattern: String.raw`^/static/auction-images/[a-zA-Z0-9_-]+\\.(jpg|jpeg|png|webp)$`,
   })
   imageUrl: string;
 }

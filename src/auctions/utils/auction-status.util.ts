@@ -60,7 +60,7 @@ export function getUserBidAmount(
 export function isValidBidAmount(
   bidAmount: number,
   currentPrice: number,
-  minIncrement: number = 1.00
+  minIncrement: number = 1
 ): boolean {
   return bidAmount > currentPrice && bidAmount >= currentPrice + minIncrement;
 }

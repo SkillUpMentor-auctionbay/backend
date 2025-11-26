@@ -5,7 +5,7 @@ import { Type } from 'class-transformer';
 export class PlaceBidDto {
   @ApiProperty({
     description: 'The bid amount (must be higher than current price)',
-    example: 125.50,
+    example: 125,
     type: Number,
     minimum: 0.01,
   })

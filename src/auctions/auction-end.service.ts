@@ -37,8 +37,8 @@ interface AuctionWithBids {
 @Injectable()
 export class AuctionEndService {
   constructor(
-    private loggingService: LoggingService,
-    private notificationsService: NotificationsService,
+    private readonly loggingService: LoggingService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   
@@ -53,7 +53,8 @@ export class AuctionEndService {
       return;
     }
 
-    const sortedBids = auction.bids.sort((a, b) => Number(b.amount) - Number(a.amount));
+    const sortedBids = auction.bids.toSorted((a, b) => Number(b.amount) - Number(a.amount));
+
 
     const winner = sortedBids[0];
     const losers = sortedBids.slice(1);

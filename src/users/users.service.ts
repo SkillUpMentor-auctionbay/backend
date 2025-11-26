@@ -7,7 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { FileUploadService } from '../common/services/file-upload.service';
 import { LoggingService } from '../common/services/logging.service';
 import * as bcrypt from 'bcryptjs';
-import * as fs from 'fs';
+import * as fs from 'node:fs';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
@@ -230,7 +230,7 @@ export class UsersService {
       throw new BadRequestException('Invalid user ID provided');
     }
 
-    if (!file || !file.buffer || !file.originalname) {
+    if (!file?.buffer || !file?.originalname) {
       throw new BadRequestException('Invalid file provided');
     }
 
@@ -243,7 +243,7 @@ export class UsersService {
       );
 
       const urlParts = profilePictureUrl.split('/');
-      savedFileName = urlParts[urlParts.length - 1];
+      savedFileName = urlParts.at(-1);
 
       const updatedUser = await this.updateUser(userId, {
         profilePictureUrl,

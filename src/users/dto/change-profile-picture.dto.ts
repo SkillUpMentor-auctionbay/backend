@@ -26,7 +26,7 @@ export class ChangeProfilePictureResponseDto {
     description: 'The new profile picture URL accessible via static file serving',
     example: '/static/profile-pictures/abc123_avatar.jpg',
     type: String,
-    pattern: '^/static/profile-pictures/[a-zA-Z0-9_-]+_avatar\\.(jpg|jpeg|png|webp)$',
+    pattern: String.raw`^/static/profile-pictures/[a-zA-Z0-9_-]+_avatar\\.(jpg|jpeg|png|webp)$`,
   })
   profilePictureUrl: string;
 

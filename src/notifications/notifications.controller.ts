@@ -143,10 +143,10 @@ export class NotificationsController {
           limit: 10,
         });
 
-        recentNotifications.notifications.forEach(notification => {
+        for (const notification of recentNotifications.notifications) {
           response.write(`event: notification\n`);
           response.write(`data: ${JSON.stringify(notification)}\n\n`);
-        });
+        }
       } catch (error) {
         this.loggingService.logError('Failed to send recent notifications on reconnection', error as Error, {
           userId,

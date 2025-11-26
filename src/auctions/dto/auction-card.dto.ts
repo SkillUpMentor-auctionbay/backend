@@ -25,14 +25,14 @@ export class AuctionCardDto {
 
   @ApiProperty({
     description: 'The starting price of auction',
-    example: 100.00,
+    example: 100,
     type: Number,
   })
   startingPrice: number;
 
   @ApiProperty({
     description: 'The current price of auction (highest bid or starting price)',
-    example: 150.00,
+    example: 150,
     type: Number,
   })
   currentPrice: number;

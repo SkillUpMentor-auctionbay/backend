@@ -108,7 +108,7 @@ export class SseService {
       const dataString = JSON.stringify(data.data);
       connection.response.write(`data: ${dataString}\n\n`);
 
-      connection.response.flush && connection.response.flush();
+      connection.response.flush?.();
 
     } catch (error) {
       this.loggingService.logError('Failed to send SSE data', error as Error, {
@@ -139,9 +139,9 @@ export class SseService {
       };
     }
 
-    userConnections.forEach((connection) => {
+    for (const connection of userConnections) {
       this.sendToConnection(connection, ssePayload);
-    });
+    }
   }
 
 
@@ -153,9 +153,9 @@ export class SseService {
 
   getTotalConnections(): number {
     let total = 0;
-    this.connections.forEach(userConnections => {
+    for (const userConnections of this.connections.values()) {
       total += userConnections.filter(conn => conn.isConnected).length;
-    });
+    }
     return total;
   }
 }

@@ -3,7 +3,7 @@ import { ApiProperty } from '@nestjs/swagger';
 export class UserStatisticsDto {
   @ApiProperty({
     description: 'Total earnings from all completed auctions (in EUR)',
-    example: 1245.50,
+    example: 1245.5,
     type: 'number',
     format: 'float',
   })

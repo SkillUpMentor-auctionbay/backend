@@ -287,7 +287,7 @@ export class UsersController {
     description: 'Unauthorized - JWT token is missing or invalid',
   })
   async removeProfilePicture(@Request() req) {
-    if (!req.user || !req.user.id) {
+    if (!req.user?.id) {
       throw new BadRequestException('Invalid user context');
     }
 
@@ -312,11 +312,10 @@ export class UsersController {
     }
 
     const sanitized = filename
-      .replace(/[\\\/]/g, '_') // Replace path separators
-      .replace(/\.\./g, '_') // Replace directory traversal attempts
-      .replace(/[<>:"|?*]/g, '_') // Replace Windows forbidden characters
-      .replace(/[\x00-\x1f\x80-\x9f]/g, '_') // Replace control characters
-      .replace(/^\.+/, '') // Remove leading dots
+      .replaceAll(/[\\/]/g, '_') // Replace path separators
+      .replaceAll(/\.\./g, '_') // Replace directory traversal attempts
+      .replaceAll(/[<>:"|?*]/g, '_') // Replace Windows forbidden characters
+      .replaceAll(/^\.+/, '') // Remove leading dots
       .trim();
 
     const maxLength = 255;

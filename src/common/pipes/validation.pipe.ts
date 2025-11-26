@@ -83,7 +83,7 @@ export class ValidationPipe implements PipeTransform<any> {
     if (typeof input === 'object' && input !== null) {
       const sanitized: any = {};
       for (const key in input) {
-        if (Object.prototype.hasOwnProperty.call(input, key)) {
+        if (Object.hasOwn(input, key)) {
           sanitized[key] = this.sanitizeInput(input[key]);
         }
       }
