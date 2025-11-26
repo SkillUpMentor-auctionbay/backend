@@ -6,16 +6,23 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { AuctionModule } from './auctions/auction.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { StorageModule } from './common/storage/storage.module';
 import { LoggingService } from './common/services/logging.service';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { ValidationPipe } from './common/pipes/validation.pipe';
-import { NotificationsModule } from './notifications/notifications.module';
+
+// Determine the appropriate .env file based on NODE_ENV
+const getEnvFile = () => {
+  const nodeEnv = process.env.NODE_ENV;
+  return nodeEnv === 'production' ? '.env.prod' : '.env';
+};
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      envFilePath: getEnvFile(),
     }),
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', '..', 'uploads'),
@@ -26,6 +33,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     UsersModule,
     AuctionModule,
     NotificationsModule,
+    StorageModule,
   ],
   controllers: [],
   providers: [LoggingService, HttpExceptionFilter, ValidationPipe],

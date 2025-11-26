@@ -3,6 +3,7 @@ import {
   OnModuleInit,
   OnModuleDestroy,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaClient } from '@prisma/client';
 import { LoggingService } from '../common/services/logging.service';
 
@@ -11,7 +12,10 @@ export class PrismaService
   extends PrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
-  constructor(private readonly loggingService: LoggingService) {
+  constructor(
+    private readonly loggingService: LoggingService,
+    private readonly configService: ConfigService,
+  ) {
     super({
       log: [
         {
@@ -40,10 +44,13 @@ export class PrismaService
       this.loggingService.logInfo('Database connection established successfully');
 
       this.$on('query', (e) => {
-        this.loggingService.logDebug('Database query executed', {
-          query: { query: e.query, params: e.params },
-          duration: e.duration,
-        });
+        const isDevelopment = this.configService.get('NODE_ENV') === 'development';
+        if (isDevelopment) {
+          this.loggingService.logDebug('Database query executed', {
+            query: { query: e.query, params: e.params },
+            duration: e.duration,
+          });
+        }
       });
 
       this.$on('error', (e) => {

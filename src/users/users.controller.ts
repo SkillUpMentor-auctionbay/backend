@@ -315,7 +315,7 @@ export class UsersController {
       .replaceAll(/[\\/]/g, '_') // Replace path separators
       .replaceAll('..', '_') // Replace directory traversal attempts
       .replaceAll(/[<>:"|?*]/g, '_') // Replace Windows forbidden characters
-      .replaceAll(/^\.+/, '') // Remove leading dots
+      .replace(/^\.+/, '') // Remove leading dots
       .trim();
 
     const maxLength = 255;
