@@ -5,17 +5,12 @@ import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { LoggingService } from './common/services/logging.service';
 import { ValidationPipe as CustomValidationPipe } from './common/pipes/validation.pipe';
+import { corsConfig } from './common/config/cors.config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Enable CORS for frontend
-  app.enableCors({
-    origin: 'http://localhost:3000',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cache-Control', 'Last-Event-ID'],
-    credentials: true,
-  });
+  app.enableCors(corsConfig);
 
   const config = new DocumentBuilder()
     .setTitle('Auction Bay API')

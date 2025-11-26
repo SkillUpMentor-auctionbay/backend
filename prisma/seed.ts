@@ -3,41 +3,38 @@ import * as bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
-// Sample data for users
 const sampleUsers = [
   {
     name: 'John',
     surname: 'Doe',
     email: 'john.doe@example.com',
     profilePictureUrl: 'https://picsum.photos/seed/john/200/200.jpg',
-    auctionCount: 8, // Power seller
+    auctionCount: 8,
   },
   {
     name: 'Sarah',
     surname: 'Smith',
     email: 'sarah.smith@example.com',
     profilePictureUrl: 'https://picsum.photos/seed/sarah/200/200.jpg',
-    auctionCount: 6, // Regular seller
+    auctionCount: 6,
   },
   {
     name: 'Mike',
     surname: 'Wilson',
     email: 'mike.wilson@example.com',
     profilePictureUrl: 'https://picsum.photos/seed/mike/200/200.jpg',
-    auctionCount: 4, // Casual seller
+    auctionCount: 4,
   },
   {
     name: 'Emma',
     surname: 'Jones',
     email: 'emma.jones@example.com',
     profilePictureUrl: 'https://picsum.photos/seed/emma/200/200.jpg',
-    auctionCount: 3, // New user
+    auctionCount: 3,
   },
 ];
 
-// Sample auction data with different categories
 const auctionTemplates = [
-  // Electronics
   {
     title: 'Vintage Leica M3 Camera',
     description: 'Classic 1954 Leica M3 rangefinder camera in excellent condition. Fully functional with minor signs of use. Comes with original leather case and 50mm f/2 Summicron lens. Perfect for collectors and photography enthusiasts.',
@@ -57,7 +54,6 @@ const auctionTemplates = [
     startingPrice: 180.00,
   },
 
-  // Collectibles
   {
     title: 'First Edition Harry Potter Book',
     description: 'Harry Potter and the Philosopher\'s Stone, first edition hardcover. Some wear on dust jacket but pages in excellent condition. True first printing from 1997. A must-have for any Harry Potter collector.',
@@ -77,7 +73,6 @@ const auctionTemplates = [
     startingPrice: 8000.00,
   },
 
-  // Art
   {
     title: 'Abstract Oil Painting on Canvas',
     description: 'Original abstract expressionist painting, 24x36 inches. Mixed media on gallery-wrapped canvas. Ready to hang. Signed by artist, certificate of authenticity included.',
@@ -97,7 +92,6 @@ const auctionTemplates = [
     startingPrice: 185.00,
   },
 
-  // Fashion & Accessories
   {
     title: 'Vintage Chanel 2.55 Flap Bag',
     description: 'Authentic vintage Chanel medium flap bag in classic black caviar leather with gold hardware. Some minor wear consistent with age. Includes authenticity card and dust bag.',
@@ -117,7 +111,6 @@ const auctionTemplates = [
     startingPrice: 125.00,
   },
 
-  // Books
   {
     title: 'Signed Stephen King Collection',
     description: 'Collection of 5 Stephen King first editions, all signed by the author. Includes Carrie, The Shining, IT, Pet Sematary, and Misery. All in very good condition with dust jackets.',
@@ -131,7 +124,6 @@ const auctionTemplates = [
     startingPrice: 420.00,
   },
 
-  // Sports & Outdoors
   {
     title: 'Professional Road Bike - Carbon Fiber',
     description: '2018 Specialized Tarmac SL6 carbon fiber road bike. Shimano Ultegra groupset, 56cm frame. Excellent condition, professionally maintained. Includes carbon wheels and power meter.',
@@ -145,7 +137,6 @@ const auctionTemplates = [
     startingPrice: 3500.00,
   },
 
-  // Home & Garden
   {
     title: 'Antique Oak Writing Desk',
     description: 'Solid oak writing desk from early 1900s. Beautiful craftsmanship with dovetail joints. Some minor scratches consistent with age. Multiple drawers and compartments.',
@@ -160,13 +151,11 @@ const auctionTemplates = [
   },
 ];
 
-// Function to generate random end times between 1 and 30 days from now
 function generateRandomEndTime(): Date {
   const now = new Date();
   const daysFromNow = Math.floor(Math.random() * 30) + 1;
   const endTime = new Date(now.getTime() + daysFromNow * 24 * 60 * 60 * 1000);
 
-  // Add random hours and minutes for more variety
   const hours = Math.floor(Math.random() * 24);
   const minutes = Math.floor(Math.random() * 60);
   endTime.setHours(hours, minutes, 0, 0);
@@ -174,7 +163,6 @@ function generateRandomEndTime(): Date {
   return endTime;
 }
 
-// Function to generate realistic bidding patterns
 function generateBidsForAuction(
   auctionId: string,
   users: any[],
@@ -184,28 +172,24 @@ function generateBidsForAuction(
   const bids: any[] = [];
   const now = new Date();
 
-  // Determine interest level based on starting price
   let bidCount: number;
   if (startingPrice < 200) {
-    bidCount = Math.floor(Math.random() * 8) + 3; // 3-10 bids
+    bidCount = Math.floor(Math.random() * 8) + 3;
   } else if (startingPrice < 1000) {
-    bidCount = Math.floor(Math.random() * 10) + 5; // 5-14 bids
+    bidCount = Math.floor(Math.random() * 10) + 5;
   } else {
-    bidCount = Math.floor(Math.random() * 12) + 8; // 8-19 bids
+    bidCount = Math.floor(Math.random() * 12) + 8;
   }
 
-  // Adjust for time remaining (auctions ending soon have more last-minute activity)
   const hoursRemaining = (endTime.getTime() - now.getTime()) / (1000 * 60 * 60);
   if (hoursRemaining < 24) {
-    bidCount = Math.max(bidCount - 2, 2); // Less time = fewer bids
+    bidCount = Math.max(bidCount - 2, 2);
   }
 
   if (bidCount === 0) return bids;
 
-  // Get eligible bidders (exclude auction owner)
   const eligibleBidders = users.filter(u => u.email !== 'unknown@example.com');
 
-  // Randomly select bidders
   const numBidders = Math.min(bidCount, eligibleBidders.length);
   const selectedBidders = eligibleBidders
     .sort(() => Math.random() - 0.5)
@@ -215,40 +199,32 @@ function generateBidsForAuction(
   const auctionStart = new Date(endTime.getTime() - (Math.random() * 7 + 1) * 24 * 60 * 60 * 1000);
 
   selectedBidders.forEach((bidder, index) => {
-    // Calculate bid progression
     let bidAmount: number;
 
     if (index === 0) {
-      // First bid: usually small increment over starting price
       bidAmount = currentPrice + (currentPrice * 0.05) + Math.random() * 10;
     } else if (index === selectedBidders.length - 1) {
-      // Last bid: larger increment, represents winning bid
       bidAmount = currentPrice + (currentPrice * 0.1) + Math.random() * 50;
     } else {
-      // Middle bids: moderate increments
       bidAmount = currentPrice + (currentPrice * 0.05) + Math.random() * 25;
     }
 
-    // Round to 2 decimal places
     bidAmount = Math.round(bidAmount * 100) / 100;
 
-    // Calculate bid time (progress through auction duration)
     const timeProgress = (index + 1) / (selectedBidders.length + 1);
     let bidTime = new Date(auctionStart.getTime() + timeProgress * (now.getTime() - auctionStart.getTime()));
 
-    // Add some randomness to timing
-    const timeVariation = (Math.random() - 0.5) * 4 * 60 * 60 * 1000; // ±2 hours
+    const timeVariation = (Math.random() - 0.5) * 4 * 60 * 60 * 1000;
     bidTime = new Date(bidTime.getTime() + timeVariation);
 
-    // Ensure bid times are sequential and not in the future
     if (bids.length > 0) {
       const lastBidTime = bids[bids.length - 1].createdAt;
       if (bidTime <= lastBidTime) {
-        bidTime = new Date(lastBidTime.getTime() + 60 * 60 * 1000); // 1 hour after previous bid
+        bidTime = new Date(lastBidTime.getTime() + 60 * 60 * 1000);
       }
     }
     if (bidTime > now) {
-      bidTime = new Date(now.getTime() - Math.random() * 60 * 60 * 1000); // Within last hour
+      bidTime = new Date(now.getTime() - Math.random() * 60 * 60 * 1000);
     }
 
     bids.push({
@@ -266,18 +242,12 @@ function generateBidsForAuction(
 }
 
 async function main() {
-  console.log('🌱 Starting database seeding...');
 
   try {
-    // Clear existing data
-    console.log('🗑️  Clearing existing data...');
     await prisma.bid.deleteMany();
     await prisma.auction.deleteMany();
     await prisma.user.deleteMany();
-    console.log('✅ Existing data cleared');
 
-    // Create users
-    console.log('👥 Creating users...');
     const password = await bcrypt.hash('password123', 10);
 
     const createdUsers = [];
@@ -292,19 +262,14 @@ async function main() {
         },
       });
       createdUsers.push(user);
-      console.log(`  ✅ Created user: ${user.email} (${userData.auctionCount} auctions planned)`);
     }
 
-    // Create auctions
-    console.log('🏷️  Creating auctions...');
     const allAuctions = [];
 
-    // Distribute auctions among users
     for (let i = 0; i < sampleUsers.length; i++) {
       const user = createdUsers[i];
       const userAuctionCount = sampleUsers[i].auctionCount;
 
-      // Select random auction templates for this user
       const selectedTemplates = [...auctionTemplates]
         .sort(() => Math.random() - 0.5)
         .slice(0, userAuctionCount);
@@ -318,17 +283,14 @@ async function main() {
             endTime: generateRandomEndTime(),
             sellerId: user.id,
             imageUrl: `https://picsum.photos/seed/${template.category}-${Math.random()}/400/300.jpg`,
-            createdAt: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000), // Random time within last week
+            createdAt: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000),
           },
         });
 
         allAuctions.push({ ...auction, template });
-        console.log(`  ✅ Created auction: "${template.title}" by ${user.email}`);
       }
     }
 
-    // Create bids
-    console.log('💰 Creating bids...');
     let totalBids = 0;
 
     for (const auction of allAuctions) {
@@ -344,29 +306,20 @@ async function main() {
           data: bids,
         });
         totalBids += bids.length;
-        console.log(`  ✅ Created ${bids.length} bids for "${auction.title}"`);
       }
     }
 
-    console.log('\n🎉 Database seeding completed successfully!');
-    console.log(`📊 Summary:`);
-    console.log(`   👥 Users: ${createdUsers.length}`);
-    console.log(`   🏷️  Auctions: ${allAuctions.length}`);
-    console.log(`   💰 Bids: ${totalBids}`);
-    console.log('\n🔑 Login credentials:');
     createdUsers.forEach(user => {
       console.log(`   ${user.email} → password123`);
     });
 
   } catch (error) {
-    console.error('❌ Error during seeding:', error);
     throw error;
   }
 }
 
 main()
   .catch((e) => {
-    console.error(e);
     process.exit(1);
   })
   .finally(async () => {

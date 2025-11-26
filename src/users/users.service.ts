@@ -265,7 +265,10 @@ export class UsersService {
             fs.unlinkSync(filePath);
           }
         } catch (cleanupError) {
-          console.error('Failed to cleanup file after database error:', cleanupError);
+          this.loggingService.logError('Failed to cleanup file after database error', cleanupError, {
+            userId,
+            fileName: savedFileName
+          });
         }
       }
 
