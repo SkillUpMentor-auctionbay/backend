@@ -41,7 +41,6 @@ export class AuctionEndService {
     private readonly notificationsService: NotificationsService,
   ) {}
 
-  
   async createNotificationsForAuction(auction: AuctionWithBids) {
     this.loggingService.logInfo('Creating notifications for ended auction', {
       auctionId: auction.id,
@@ -53,18 +52,20 @@ export class AuctionEndService {
       return;
     }
 
-    const sortedBids = auction.bids.toSorted((a, b) => Number(b.amount) - Number(a.amount));
-
+    const sortedBids = auction.bids.toSorted(
+      (a, b) => Number(b.amount) - Number(a.amount),
+    );
 
     const winner = sortedBids[0];
     const losers = sortedBids.slice(1);
 
     try {
-      const winnerNotification = await this.notificationsService.createNotification({
-        userId: winner.bidder.id,
-        auctionId: auction.id,
-        price: Number(winner.amount),
-      });
+      const winnerNotification =
+        await this.notificationsService.createNotification({
+          userId: winner.bidder.id,
+          auctionId: auction.id,
+          price: Number(winner.amount),
+        });
 
       this.loggingService.logInfo('Winner notification created', {
         auctionId: auction.id,
@@ -74,19 +75,24 @@ export class AuctionEndService {
         notificationId: winnerNotification.id,
       });
     } catch (error) {
-      this.loggingService.logError('Failed to create winner notification', error as Error, {
-        auctionId: auction.id,
-        winnerId: winner.bidder.id,
-      });
+      this.loggingService.logError(
+        'Failed to create winner notification',
+        error as Error,
+        {
+          auctionId: auction.id,
+          winnerId: winner.bidder.id,
+        },
+      );
     }
 
     for (const loser of losers) {
       try {
-        const loserNotification = await this.notificationsService.createNotification({
-          userId: loser.bidder.id,
-          auctionId: auction.id,
-          price: null,
-        });
+        const loserNotification =
+          await this.notificationsService.createNotification({
+            userId: loser.bidder.id,
+            auctionId: auction.id,
+            price: null,
+          });
 
         this.loggingService.logInfo('Loser notification created', {
           auctionId: auction.id,
@@ -95,10 +101,14 @@ export class AuctionEndService {
           notificationId: loserNotification.id,
         });
       } catch (error) {
-        this.loggingService.logError('Failed to create loser notification', error as Error, {
-          auctionId: auction.id,
-          loserId: loser.bidder.id,
-        });
+        this.loggingService.logError(
+          'Failed to create loser notification',
+          error as Error,
+          {
+            auctionId: auction.id,
+            loserId: loser.bidder.id,
+          },
+        );
       }
     }
   }

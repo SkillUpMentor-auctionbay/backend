@@ -107,7 +107,7 @@ export class AuthService {
       const payload = {
         email: user.email,
         sub: user.id,
-        tokenVersion: user.tokenVersion
+        tokenVersion: user.tokenVersion,
       };
       const access_token = this.jwtService.sign(payload);
 
@@ -153,35 +153,60 @@ export class AuthService {
     const result = await this.usersService.setPasswordResetToken(email);
 
     if (!result) {
-      this.loggingService.logInfo('Password reset requested for non-existent email', { email });
-      return { message: 'If an account with this email exists, a password reset link has been sent.' };
+      this.loggingService.logInfo(
+        'Password reset requested for non-existent email',
+        { email },
+      );
+      return {
+        message:
+          'If an account with this email exists, a password reset link has been sent.',
+      };
     }
 
     try {
+      this.loggingService.logInfo('Password reset email sent successfully', {
+        email,
+      });
 
-      this.loggingService.logInfo('Password reset email sent successfully', { email });
-
-      return { message: 'If an account with this email exists, a password reset link has been sent.' };
+      return {
+        message:
+          'If an account with this email exists, a password reset link has been sent.',
+      };
     } catch (error) {
-      this.loggingService.logError('Failed to send password reset email', error, { email });
+      this.loggingService.logError(
+        'Failed to send password reset email',
+        error,
+        { email },
+      );
 
       await this.usersService.clearPasswordResetTokenByEmail(email);
 
-      throw new BadRequestException('Failed to send password reset email. Please try again later.');
+      throw new BadRequestException(
+        'Failed to send password reset email. Please try again later.',
+      );
     }
   }
 
-  async resetPassword(token: string, password: string, confirmPassword: string) {
+  async resetPassword(
+    token: string,
+    password: string,
+    confirmPassword: string,
+  ) {
     if (password !== confirmPassword) {
       throw new BadRequestException('Passwords do not match');
     }
 
     if (password.length < 8) {
-      throw new BadRequestException('Password must be at least 8 characters long');
+      throw new BadRequestException(
+        'Password must be at least 8 characters long',
+      );
     }
 
     try {
-      const updatedUser = await this.usersService.resetPassword(token, password);
+      const updatedUser = await this.usersService.resetPassword(
+        token,
+        password,
+      );
 
       this.loggingService.logInfo('Password reset completed successfully', {
         userId: updatedUser.id,
@@ -189,7 +214,8 @@ export class AuthService {
       });
 
       return {
-        message: 'Password reset successfully. Please login with your new password.',
+        message:
+          'Password reset successfully. Please login with your new password.',
         user: updatedUser,
       };
     } catch (error) {
@@ -209,10 +235,12 @@ export class AuthService {
       return {
         valid: true,
         message: 'Reset token is valid',
-        email: user.email
+        email: user.email,
       };
     } catch (error) {
-      this.loggingService.logError('Token verification failed', error, { token });
+      this.loggingService.logError('Token verification failed', error, {
+        token,
+      });
       return { valid: false, message: 'Token verification failed' };
     }
   }

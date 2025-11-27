@@ -14,7 +14,13 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { ApiTags, ApiResponse, ApiBody, ApiConsumes, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiResponse,
+  ApiBody,
+  ApiConsumes,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { UserDto } from './dto/user.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
 import { UpdateUserProfileDto } from './dto/update-user-profile.dto';
@@ -23,7 +29,7 @@ import {
   ChangeProfilePictureResponseDto,
   FileUploadErrorDto,
   ProfilePictureUploadDto,
-  RemoveProfilePictureResponseDto
+  RemoveProfilePictureResponseDto,
 } from './dto/change-profile-picture.dto';
 import { UsersService } from './users.service';
 import { StatisticsService } from './statistics.service';
@@ -57,7 +63,10 @@ export class UsersController {
 
   @Patch('me/update-profile')
   @UseGuards(JwtAuthGuard)
-  @ApiBody({ type: UpdateUserProfileDto, description: 'User profile update data' })
+  @ApiBody({
+    type: UpdateUserProfileDto,
+    description: 'User profile update data',
+  })
   @ApiResponse({
     status: 200,
     description: 'Profile updated successfully',
@@ -90,9 +99,13 @@ export class UsersController {
 
     try {
       if (updateProfileDto.email !== req.user.email) {
-        const existingUser = await this.usersService.findByEmail(updateProfileDto.email);
+        const existingUser = await this.usersService.findByEmail(
+          updateProfileDto.email,
+        );
         if (existingUser && existingUser.id !== req.user.id) {
-          throw new ConflictException('Email is already in use by another account');
+          throw new ConflictException(
+            'Email is already in use by another account',
+          );
         }
       }
 
@@ -137,7 +150,9 @@ export class UsersController {
     });
 
     try {
-      const statistics = await this.statisticsService.getUserStatistics(req.user.id);
+      const statistics = await this.statisticsService.getUserStatistics(
+        req.user.id,
+      );
 
       this.loggingService.logInfo('User statistics retrieved successfully', {
         userId: req.user.id,
@@ -145,14 +160,17 @@ export class UsersController {
 
       return statistics;
     } catch (error) {
-      this.loggingService.logError('Failed to retrieve user statistics', error, {
-        userId: req.user.id,
-      });
+      this.loggingService.logError(
+        'Failed to retrieve user statistics',
+        error,
+        {
+          userId: req.user.id,
+        },
+      );
       throw error;
     }
   }
 
-  
   @Patch('me/update-password')
   @UseGuards(JwtAuthGuard)
   @ApiBody({ type: UpdatePasswordDto, description: 'Password update data' })
@@ -193,7 +211,8 @@ export class UsersController {
   @UseInterceptors(FileInterceptor('file'))
   @ApiConsumes('multipart/form-data')
   @ApiBody({
-    description: 'Profile picture file to upload (max 5MB, allowed formats: JPEG, PNG, WebP)',
+    description:
+      'Profile picture file to upload (max 5MB, allowed formats: JPEG, PNG, WebP)',
     type: ProfilePictureUploadDto,
   })
   @ApiResponse({
@@ -203,7 +222,8 @@ export class UsersController {
   })
   @ApiResponse({
     status: 400,
-    description: 'Bad Request - Invalid file format, size too large, filename issues, or upload error',
+    description:
+      'Bad Request - Invalid file format, size too large, filename issues, or upload error',
     type: FileUploadErrorDto,
   })
   @ApiResponse({
@@ -232,27 +252,38 @@ export class UsersController {
     file: Express.Multer.File,
   ) {
     if (!file) {
-      this.loggingService.logWarning('Profile picture upload attempted without file', {
-        userId: req.user.id,
-      });
-      throw new BadRequestException('File is required for profile picture upload');
+      this.loggingService.logWarning(
+        'Profile picture upload attempted without file',
+        {
+          userId: req.user.id,
+        },
+      );
+      throw new BadRequestException(
+        'File is required for profile picture upload',
+      );
     }
 
     if (!file.originalname || typeof file.originalname !== 'string') {
-      this.loggingService.logWarning('Profile picture upload with invalid filename', {
-        userId: req.user.id,
-        fileName: file.originalname,
-      });
+      this.loggingService.logWarning(
+        'Profile picture upload with invalid filename',
+        {
+          userId: req.user.id,
+          fileName: file.originalname,
+        },
+      );
       throw new BadRequestException('Invalid filename provided');
     }
 
     const sanitizedFilename = this.sanitizeFilename(file.originalname);
     if (sanitizedFilename !== file.originalname) {
-      this.loggingService.logWarning('Profile picture upload with potentially malicious filename', {
-        userId: req.user.id,
-        originalFilename: file.originalname,
-        sanitizedFilename,
-      });
+      this.loggingService.logWarning(
+        'Profile picture upload with potentially malicious filename',
+        {
+          userId: req.user.id,
+          originalFilename: file.originalname,
+          sanitizedFilename,
+        },
+      );
       throw new BadRequestException('Filename contains invalid characters');
     }
 
@@ -305,7 +336,6 @@ export class UsersController {
     }
   }
 
-
   private sanitizeFilename(filename: string): string {
     if (!filename || typeof filename !== 'string') {
       return '';
@@ -319,6 +349,8 @@ export class UsersController {
       .trim();
 
     const maxLength = 255;
-    return sanitized.length > maxLength ? sanitized.substring(0, maxLength) : sanitized;
+    return sanitized.length > maxLength
+      ? sanitized.substring(0, maxLength)
+      : sanitized;
   }
 }

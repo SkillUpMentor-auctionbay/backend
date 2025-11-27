@@ -2,7 +2,6 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsOptional, IsDate } from 'class-validator';
 import { Type } from 'class-transformer';
 
-
 export class UpdateAuctionDto {
   @ApiProperty({
     description: 'The title of the auction',
@@ -16,7 +15,8 @@ export class UpdateAuctionDto {
 
   @ApiProperty({
     description: 'The description of the auction',
-    example: 'Updated description: A collection of vintage cameras from the 1970s',
+    example:
+      'Updated description: A collection of vintage cameras from the 1970s',
     type: String,
     required: false,
   })

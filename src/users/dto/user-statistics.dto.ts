@@ -9,7 +9,6 @@ export class UserStatisticsDto {
   })
   totalEarnings: number;
 
-  
   @ApiProperty({
     description: 'Total number of auctions created by the user',
     example: 23,
@@ -25,7 +24,8 @@ export class UserStatisticsDto {
   currentlyBidding: number;
 
   @ApiProperty({
-    description: 'Number of auctions where user is currently the highest bidder',
+    description:
+      'Number of auctions where user is currently the highest bidder',
     example: 2,
     type: 'number',
   })

@@ -249,14 +249,16 @@ export class UsersService {
         profilePictureUrl,
       });
 
-      await this.fileUploadService.cleanupOldProfilePictures(userId, savedFileName);
+      await this.fileUploadService.cleanupOldProfilePictures(
+        userId,
+        savedFileName,
+      );
 
       return {
         message: 'Profile picture updated successfully',
         profilePictureUrl,
         user: updatedUser,
       };
-
     } catch (error) {
       if (savedFileName) {
         try {
@@ -265,10 +267,14 @@ export class UsersService {
             fs.unlinkSync(filePath);
           }
         } catch (cleanupError) {
-          this.loggingService.logError('Failed to cleanup file after database error', cleanupError, {
-            userId,
-            fileName: savedFileName
-          });
+          this.loggingService.logError(
+            'Failed to cleanup file after database error',
+            cleanupError,
+            {
+              userId,
+              fileName: savedFileName,
+            },
+          );
         }
       }
 
@@ -292,7 +298,6 @@ export class UsersService {
         message: 'Profile picture removed successfully',
         user: updatedUser,
       };
-
     } catch (error) {
       this.loggingService.logError('Failed to remove profile picture', error, {
         userId,
@@ -306,7 +311,9 @@ export class UsersService {
     }
   }
 
-  async setPasswordResetToken(email: string): Promise<{ token: string } | null> {
+  async setPasswordResetToken(
+    email: string,
+  ): Promise<{ token: string } | null> {
     const user = await this.prisma.user.findUnique({
       where: { email },
     });

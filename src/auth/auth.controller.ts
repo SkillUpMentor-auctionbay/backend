@@ -5,7 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   Request,
-  UseGuards
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiBody, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
@@ -101,7 +101,8 @@ export class AuthController {
       properties: {
         message: {
           type: 'string',
-          example: 'If an account with this email exists, a password reset link has been sent.',
+          example:
+            'If an account with this email exists, a password reset link has been sent.',
         },
       },
     },
@@ -128,7 +129,8 @@ export class AuthController {
       properties: {
         message: {
           type: 'string',
-          example: 'Password reset successfully. Please login with your new password.',
+          example:
+            'Password reset successfully. Please login with your new password.',
         },
         user: {
           type: 'object',
@@ -145,7 +147,8 @@ export class AuthController {
   })
   @ApiResponse({
     status: 400,
-    description: 'Bad request - invalid token, passwords do not match, or password too short',
+    description:
+      'Bad request - invalid token, passwords do not match, or password too short',
   })
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     return this.authService.resetPassword(

@@ -15,7 +15,15 @@ import {
   HttpStatus,
   BadRequestException,
 } from '@nestjs/common';
-import { ApiTags, ApiResponse, ApiBearerAuth, ApiQuery, ApiParam, ApiConsumes, ApiBody } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiQuery,
+  ApiParam,
+  ApiConsumes,
+  ApiBody,
+} from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuctionService } from './auction.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -41,7 +49,6 @@ export class AuctionController {
     private readonly prisma: PrismaService,
   ) {}
 
-
   @Post('me/auction')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT')
@@ -64,7 +71,10 @@ export class AuctionController {
     status: 401,
     description: 'Unauthorized - JWT token is missing or invalid',
   })
-  async createAuction(@Request() req, @Body() createAuctionDto: CreateAuctionDto) {
+  async createAuction(
+    @Request() req,
+    @Body() createAuctionDto: CreateAuctionDto,
+  ) {
     this.loggingService.logInfo('Create auction request', {
       userId: req.user.id,
       title: createAuctionDto.title,
@@ -73,7 +83,7 @@ export class AuctionController {
     try {
       const auction = await this.auctionService.createAuction(
         req.user.id,
-        createAuctionDto
+        createAuctionDto,
       );
 
       return {
@@ -88,7 +98,6 @@ export class AuctionController {
       throw error;
     }
   }
-
 
   @Post(':id/upload-image')
   @UseGuards(JwtAuthGuard)
@@ -151,7 +160,7 @@ export class AuctionController {
           errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
         }),
     )
-    file: Express.Multer.File
+    file: Express.Multer.File,
   ) {
     this.loggingService.logInfo('Auction image upload request', {
       userId: req.user.id,
@@ -162,24 +171,33 @@ export class AuctionController {
     });
 
     if (!file) {
-      this.loggingService.logWarning('Auction image upload attempted without file', {
-        userId: req.user.id,
-        auctionId,
-      });
+      this.loggingService.logWarning(
+        'Auction image upload attempted without file',
+        {
+          userId: req.user.id,
+          auctionId,
+        },
+      );
       throw new BadRequestException('File is required for image upload');
     }
 
     if (!file.originalname || typeof file.originalname !== 'string') {
-      this.loggingService.logWarning('Auction image upload with invalid filename', {
-        userId: req.user.id,
-        auctionId,
-        fileName: file.originalname,
-      });
+      this.loggingService.logWarning(
+        'Auction image upload with invalid filename',
+        {
+          userId: req.user.id,
+          auctionId,
+          fileName: file.originalname,
+        },
+      );
       throw new BadRequestException('Invalid filename provided');
     }
 
     try {
-      await this.auctionService.validateAuctionOwnership(auctionId, req.user.id);
+      await this.auctionService.validateAuctionOwnership(
+        auctionId,
+        req.user.id,
+      );
 
       const imageUrl = await this.fileUploadService.saveAuctionImage(file);
 
@@ -202,7 +220,6 @@ export class AuctionController {
       throw error;
     }
   }
-
 
   @Delete(':id/delete-image')
   @UseGuards(JwtAuthGuard)
@@ -229,16 +246,14 @@ export class AuctionController {
   })
   @ApiResponse({
     status: 403,
-    description: 'Forbidden - You can only delete images from your own auctions',
+    description:
+      'Forbidden - You can only delete images from your own auctions',
   })
   @ApiResponse({
     status: 404,
     description: 'Not Found - Auction not found',
   })
-  async deleteAuctionImage(
-    @Request() req,
-    @Param('id') auctionId: string
-  ) {
+  async deleteAuctionImage(@Request() req, @Param('id') auctionId: string) {
     this.loggingService.logInfo('Delete auction image request', {
       userId: req.user.id,
       auctionId,
@@ -258,7 +273,6 @@ export class AuctionController {
       throw error;
     }
   }
-
 
   @Patch('me/auction/:id')
   @UseGuards(JwtAuthGuard)
@@ -299,7 +313,7 @@ export class AuctionController {
   async updateAuction(
     @Request() req,
     @Param('id') auctionId: string,
-    @Body() updateAuctionDto: UpdateAuctionDto
+    @Body() updateAuctionDto: UpdateAuctionDto,
   ) {
     this.loggingService.logInfo('Update auction request', {
       userId: req.user.id,
@@ -311,7 +325,7 @@ export class AuctionController {
       const auction = await this.auctionService.updateAuction(
         auctionId,
         req.user.id,
-        updateAuctionDto
+        updateAuctionDto,
       );
 
       return {
@@ -326,7 +340,6 @@ export class AuctionController {
       throw error;
     }
   }
-
 
   @Delete('me/auction/:id')
   @UseGuards(JwtAuthGuard)
@@ -353,10 +366,7 @@ export class AuctionController {
     status: 404,
     description: 'Not Found - Auction not found',
   })
-  async deleteAuction(
-    @Request() req,
-    @Param('id') auctionId: string
-  ) {
+  async deleteAuction(@Request() req, @Param('id') auctionId: string) {
     this.loggingService.logInfo('Delete auction request', {
       userId: req.user.id,
       auctionId,
@@ -373,7 +383,6 @@ export class AuctionController {
     }
   }
 
-
   @Get()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT')
@@ -388,7 +397,8 @@ export class AuctionController {
   })
   @ApiQuery({
     name: 'filter',
-    description: 'Filter auctions: OWN (your created auctions), BID (auctions you bid on), WON (auctions you won)',
+    description:
+      'Filter auctions: OWN (your created auctions), BID (auctions you bid on), WON (auctions you won)',
     required: false,
     enum: AuctionFilter,
   })
@@ -430,7 +440,6 @@ export class AuctionController {
     }
   }
 
-
   @Get(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT')
@@ -455,7 +464,7 @@ export class AuctionController {
   })
   async getAuctionById(
     @Request() req,
-    @Param('id') auctionId: string
+    @Param('id') auctionId: string,
   ): Promise<DetailedAuctionDto> {
     const userId = req.user?.id;
 
@@ -474,7 +483,6 @@ export class AuctionController {
       throw error;
     }
   }
-
 
   @Post(':id/bid')
   @UseGuards(JwtAuthGuard)
@@ -515,7 +523,7 @@ export class AuctionController {
   async placeBid(
     @Request() req,
     @Param('id') auctionId: string,
-    @Body() placeBidDto: PlaceBidDto
+    @Body() placeBidDto: PlaceBidDto,
   ) {
     this.loggingService.logInfo('Place bid request', {
       userId: req.user.id,
@@ -527,7 +535,7 @@ export class AuctionController {
       const bid = await this.auctionService.placeBid(
         auctionId,
         req.user.id,
-        placeBidDto
+        placeBidDto,
       );
 
       return {

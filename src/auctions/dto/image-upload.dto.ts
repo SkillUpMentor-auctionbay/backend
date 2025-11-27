@@ -2,7 +2,8 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class ImageUploadResponseDto {
   @ApiProperty({
-    description: 'Success message indicating the image was uploaded successfully',
+    description:
+      'Success message indicating the image was uploaded successfully',
     example: 'Image uploaded successfully',
     type: String,
   })
@@ -29,7 +30,8 @@ export class ImageUploadDto {
 
 export class ImageDeletionResponseDto {
   @ApiProperty({
-    description: 'Success message indicating the image was deleted successfully',
+    description:
+      'Success message indicating the image was deleted successfully',
     example: 'Image deleted successfully',
     type: String,
   })

@@ -13,7 +13,10 @@ export interface SseConnection {
 @Injectable()
 export class SseService {
   private readonly connections: Map<string, SseConnection[]> = new Map();
-  private readonly notificationSubject = new Subject<{ userId: string; notification: NotificationDto }>();
+  private readonly notificationSubject = new Subject<{
+    userId: string;
+    notification: NotificationDto;
+  }>();
 
   constructor(private readonly loggingService: LoggingService) {}
 
@@ -34,7 +37,10 @@ export class SseService {
 
     this.sendToConnection(connection, {
       event: 'connected',
-      data: { message: 'Connected to notifications stream', timestamp: new Date().toISOString() },
+      data: {
+        message: 'Connected to notifications stream',
+        timestamp: new Date().toISOString(),
+      },
     });
 
     this.loggingService.logInfo('SSE connection added for user', {
@@ -43,13 +49,14 @@ export class SseService {
     });
   }
 
-
   removeConnection(userId: string, response: any): void {
     this.loggingService.logInfo('Removing SSE connection', { userId });
 
     const userConnections = this.connections.get(userId);
     if (userConnections) {
-      const index = userConnections.findIndex(conn => conn.response === response);
+      const index = userConnections.findIndex(
+        (conn) => conn.response === response,
+      );
       if (index !== -1) {
         userConnections[index].isConnected = false;
         userConnections.splice(index, 1);
@@ -66,7 +73,6 @@ export class SseService {
     });
   }
 
-
   broadcastNotification(userId: string, notification: NotificationDto): void {
     this.loggingService.logInfo('Broadcasting notification via SSE', {
       userId,
@@ -78,22 +84,24 @@ export class SseService {
       userId,
       notification,
       timestamp: new Date().toISOString(),
-      eventType: notification.price ? 'auction_won' : 'outbid'
+      eventType: notification.price ? 'auction_won' : 'outbid',
     };
 
     this.notificationSubject.next(standardizedEvent);
 
     this.sendToUserConnections(userId, {
       event: 'notification',
-      data: standardizedEvent
+      data: standardizedEvent,
     });
   }
 
-
-  getNotificationStream(userId: string): Observable<{ userId: string; notification: NotificationDto }> {
-    return this.notificationSubject.asObservable().pipe(filter(event => event.userId === userId));
+  getNotificationStream(
+    userId: string,
+  ): Observable<{ userId: string; notification: NotificationDto }> {
+    return this.notificationSubject
+      .asObservable()
+      .pipe(filter((event) => event.userId === userId));
   }
-
 
   private sendToConnection(connection: SseConnection, data: any): void {
     if (!connection.isConnected) {
@@ -109,7 +117,6 @@ export class SseService {
       connection.response.write(`data: ${dataString}\n\n`);
 
       connection.response.flush?.();
-
     } catch (error) {
       this.loggingService.logError('Failed to send SSE data', error as Error, {
         userId: connection.userId,
@@ -117,7 +124,6 @@ export class SseService {
       connection.isConnected = false;
     }
   }
-
 
   private sendToUserConnections(userId: string, data: any): void {
     const userConnections = this.connections.get(userId);
@@ -134,8 +140,9 @@ export class SseService {
           userId,
           notification: data.notification || data,
           timestamp: new Date().toISOString(),
-          eventType: (data.notification?.price || data?.price) ? 'auction_won' : 'outbid'
-        }
+          eventType:
+            data.notification?.price || data?.price ? 'auction_won' : 'outbid',
+        },
       };
     }
 
@@ -144,17 +151,17 @@ export class SseService {
     }
   }
 
-
   getConnectionCount(userId: string): number {
     const userConnections = this.connections.get(userId);
-    return userConnections ? userConnections.filter(conn => conn.isConnected).length : 0;
+    return userConnections
+      ? userConnections.filter((conn) => conn.isConnected).length
+      : 0;
   }
-
 
   getTotalConnections(): number {
     let total = 0;
     for (const userConnections of this.connections.values()) {
-      total += userConnections.filter(conn => conn.isConnected).length;
+      total += userConnections.filter((conn) => conn.isConnected).length;
     }
     return total;
   }

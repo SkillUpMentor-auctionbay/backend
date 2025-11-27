@@ -13,8 +13,10 @@ export class AuctionSchedulerService {
     private readonly auctionEndService: AuctionEndService,
   ) {}
 
-
-  async updateOrCreateAuctionEnd(auctionId: string, endTime: Date): Promise<void> {
+  async updateOrCreateAuctionEnd(
+    auctionId: string,
+    endTime: Date,
+  ): Promise<void> {
     this.loggingService.logInfo('Updating or creating auction end job', {
       auctionId,
       scheduledAt: endTime,
@@ -55,10 +57,14 @@ export class AuctionSchedulerService {
         });
       }
     } catch (error) {
-      this.loggingService.logError('Failed to update or create auction end job', error as Error, {
-        auctionId,
-        endTime,
-      });
+      this.loggingService.logError(
+        'Failed to update or create auction end job',
+        error as Error,
+        {
+          auctionId,
+          endTime,
+        },
+      );
       throw error;
     }
   }
@@ -84,14 +90,21 @@ export class AuctionSchedulerService {
           status: deletedJob.status,
         });
       } else {
-        this.loggingService.logWarning('No scheduled job found to cancel for auction', {
-          auctionId,
-        });
+        this.loggingService.logWarning(
+          'No scheduled job found to cancel for auction',
+          {
+            auctionId,
+          },
+        );
       }
     } catch (error) {
-      this.loggingService.logError('Failed to cancel auction end job', error as Error, {
-        auctionId,
-      });
+      this.loggingService.logError(
+        'Failed to cancel auction end job',
+        error as Error,
+        {
+          auctionId,
+        },
+      );
       throw error;
     }
   }
@@ -138,7 +151,7 @@ export class AuctionSchedulerService {
 
       this.loggingService.logInfo('Found scheduled jobs to process', {
         processedCount: dueJobs.length,
-        jobIds: dueJobs.map(job => job.id),
+        jobIds: dueJobs.map((job) => job.id),
       });
 
       for (const job of dueJobs) {
@@ -147,13 +160,15 @@ export class AuctionSchedulerService {
 
       this.loggingService.logInfo('Processed scheduled jobs', {
         processedCount: dueJobs.length,
-        jobIds: dueJobs.map(job => job.id),
+        jobIds: dueJobs.map((job) => job.id),
       });
     } catch (error) {
-      this.loggingService.logError('Failed to process scheduled jobs', error as Error);
+      this.loggingService.logError(
+        'Failed to process scheduled jobs',
+        error as Error,
+      );
     }
   }
-
 
   private async executeJob(job: any): Promise<void> {
     const { auctionId, auction } = job;
@@ -205,11 +220,15 @@ export class AuctionSchedulerService {
         bidCount: auction.bids.length,
       });
     } catch (error) {
-      this.loggingService.logError('Failed to execute scheduled job', error as Error, {
-        jobId: job.id,
-        auctionId,
-        error: error.message,
-      });
+      this.loggingService.logError(
+        'Failed to execute scheduled job',
+        error as Error,
+        {
+          jobId: job.id,
+          auctionId,
+          error: error.message,
+        },
+      );
 
       await this.prisma.scheduledJob.update({
         where: { id: job.id },
@@ -220,5 +239,4 @@ export class AuctionSchedulerService {
       });
     }
   }
-
 }

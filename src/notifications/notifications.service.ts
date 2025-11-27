@@ -14,8 +14,9 @@ export class NotificationsService {
     private readonly sseService: SseService,
   ) {}
 
-
-  async createNotification(createNotificationDto: CreateNotificationDto): Promise<NotificationDto> {
+  async createNotification(
+    createNotificationDto: CreateNotificationDto,
+  ): Promise<NotificationDto> {
     const { userId, auctionId, price } = createNotificationDto;
 
     this.loggingService.logInfo('Creating notification', {
@@ -33,10 +34,13 @@ export class NotificationsService {
         },
       });
 
-      this.loggingService.logInfo('Deleted existing notifications for user+auction', {
-        userId,
-        auctionId,
-      });
+      this.loggingService.logInfo(
+        'Deleted existing notifications for user+auction',
+        {
+          userId,
+          auctionId,
+        },
+      );
 
       const notification = await this.prisma.notification.create({
         data: {
@@ -70,18 +74,22 @@ export class NotificationsService {
 
       return notificationDto;
     } catch (error) {
-      this.loggingService.logError('Failed to create notification', error as Error, {
-        userId,
-        auctionId,
-        price,
-      });
+      this.loggingService.logError(
+        'Failed to create notification',
+        error as Error,
+        {
+          userId,
+          auctionId,
+          price,
+        },
+      );
       throw new BadRequestException('Failed to create notification');
     }
   }
 
   async getUserNotifications(
     userId: string,
-    queryDto: NotificationQueryDto
+    queryDto: NotificationQueryDto,
   ): Promise<{ notifications: NotificationDto[]; total: number }> {
     const { page = 1, limit = 10 } = queryDto;
     const skip = (page - 1) * limit;
@@ -119,8 +127,8 @@ export class NotificationsService {
         this.prisma.notification.count({ where }),
       ]);
 
-      const notificationDtos = notifications.map(notification =>
-        this.mapToDto(notification)
+      const notificationDtos = notifications.map((notification) =>
+        this.mapToDto(notification),
       );
 
       return {
@@ -128,15 +136,21 @@ export class NotificationsService {
         total,
       };
     } catch (error) {
-      this.loggingService.logError('Failed to fetch user notifications', error as Error, {
-        userId,
-      });
+      this.loggingService.logError(
+        'Failed to fetch user notifications',
+        error as Error,
+        {
+          userId,
+        },
+      );
       throw new BadRequestException('Failed to fetch notifications');
     }
   }
 
   async clearAllNotifications(userId: string): Promise<void> {
-    this.loggingService.logInfo('Clearing all notifications for user', { userId });
+    this.loggingService.logInfo('Clearing all notifications for user', {
+      userId,
+    });
 
     try {
       const result = await this.prisma.notification.deleteMany({
@@ -147,21 +161,26 @@ export class NotificationsService {
 
       this.loggingService.logInfo('All notifications deleted successfully', {
         userId,
-        deletedCount: result.count
+        deletedCount: result.count,
       });
     } catch (error) {
-      this.loggingService.logError('Failed to clear notifications', error as Error, {
-        userId,
-      });
+      this.loggingService.logError(
+        'Failed to clear notifications',
+        error as Error,
+        {
+          userId,
+        },
+      );
       throw new BadRequestException('Failed to clear notifications');
     }
   }
 
-
   private mapToDto(notification: any): NotificationDto {
     return {
       id: notification.id,
-      price: notification.price ? Number.parseFloat(notification.price.toString()) : null,
+      price: notification.price
+        ? Number.parseFloat(notification.price.toString())
+        : null,
       createdAt: notification.createdAt.toISOString(),
       auction: {
         id: notification.auction.id,

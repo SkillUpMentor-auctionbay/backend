@@ -24,7 +24,13 @@ import { LoggingService } from '../common/services/logging.service';
       inject: [ConfigService],
     }),
   ],
-  providers: [AuthService, JwtStrategy, JwtAuthGuard, SseAuthGuard, LoggingService],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    JwtAuthGuard,
+    SseAuthGuard,
+    LoggingService,
+  ],
   controllers: [AuthController],
   exports: [AuthService, JwtStrategy, JwtAuthGuard, SseAuthGuard],
 })

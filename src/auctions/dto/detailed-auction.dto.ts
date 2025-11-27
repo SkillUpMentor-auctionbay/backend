@@ -49,7 +49,8 @@ export class DetailedAuctionDto {
 
   @ApiProperty({
     description: 'The description of the auction',
-    example: 'A collection of vintage cameras from the 1970s in excellent condition',
+    example:
+      'A collection of vintage cameras from the 1970s in excellent condition',
     type: String,
   })
   description: string;
@@ -70,7 +71,8 @@ export class DetailedAuctionDto {
   startingPrice: number;
 
   @ApiProperty({
-    description: 'The current price of the auction (highest bid or starting price)',
+    description:
+      'The current price of the auction (highest bid or starting price)',
     example: 150,
     type: Number,
   })
@@ -120,7 +122,8 @@ export class DetailedAuctionDto {
   createdAt: Date;
 
   @ApiProperty({
-    description: 'List of all bids placed on this auction, ordered by amount (highest first)',
+    description:
+      'List of all bids placed on this auction, ordered by amount (highest first)',
     type: [BidDto],
   })
   bids: BidDto[];

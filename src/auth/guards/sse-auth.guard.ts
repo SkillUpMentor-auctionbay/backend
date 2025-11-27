@@ -21,11 +21,16 @@ export class SseAuthGuard extends AuthGuard('jwt') {
     if (!request.headers.authorization && token) {
       request.headers.authorization = `Bearer ${token}`;
 
-      this.loggingService.logInfo('Token moved from query to Authorization header', {
-        message: `Token length: ${token.length}`
-      });
+      this.loggingService.logInfo(
+        'Token moved from query to Authorization header',
+        {
+          message: `Token length: ${token.length}`,
+        },
+      );
     } else if (!request.headers.authorization && !token) {
-      this.loggingService.logWarning('SSE connection attempted without authentication token');
+      this.loggingService.logWarning(
+        'SSE connection attempted without authentication token',
+      );
     }
 
     return super.canActivate(context);

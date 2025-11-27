@@ -3,7 +3,6 @@ import { IsOptional, IsNumber } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class NotificationQueryDto {
-
   @ApiProperty({
     description: 'Page number for pagination',
     example: 1,

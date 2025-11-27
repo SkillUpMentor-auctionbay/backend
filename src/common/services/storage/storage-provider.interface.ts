@@ -1,6 +1,8 @@
 export interface IStorageProvider {
-
-  uploadProfilePicture(userId: string, file: Express.Multer.File): Promise<string>;
+  uploadProfilePicture(
+    userId: string,
+    file: Express.Multer.File,
+  ): Promise<string>;
 
   uploadAuctionImage(file: Express.Multer.File): Promise<string>;
 
@@ -10,7 +12,10 @@ export interface IStorageProvider {
 
   getProfilePictureUrl(userId: string): Promise<string | null>;
 
-  cleanupOldProfilePictures(userId: string, excludeFileName?: string): Promise<void>;
+  cleanupOldProfilePictures(
+    userId: string,
+    excludeFileName?: string,
+  ): Promise<void>;
 
   cleanupOrphanedAuctionImages(existingImageUrls: string[]): Promise<void>;
 

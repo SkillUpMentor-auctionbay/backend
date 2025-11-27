@@ -6,12 +6,13 @@ export enum AuctionFilter {
   ALL = 'ALL',
   OWN = 'OWN',
   BID = 'BID',
-  WON = 'WON'
+  WON = 'WON',
 }
 
 export class AuctionQueryDto {
   @ApiProperty({
-    description: 'Filter auctions: ALL (all auctions), OWN (your created auctions), BID (auctions you bid on), WON (auctions you won)',
+    description:
+      'Filter auctions: ALL (all auctions), OWN (your created auctions), BID (auctions you bid on), WON (auctions you won)',
     enum: AuctionFilter,
     example: AuctionFilter.ALL,
   })

@@ -12,7 +12,9 @@ export interface BaseBidderDto {
   profilePictureUrl?: string;
 }
 
-export function mapUserToBidderDto(user: UserWithProfilePicture): BaseBidderDto {
+export function mapUserToBidderDto(
+  user: UserWithProfilePicture,
+): BaseBidderDto {
   return {
     id: user.id,
     name: user.name,
@@ -21,6 +23,9 @@ export function mapUserToBidderDto(user: UserWithProfilePicture): BaseBidderDto 
   };
 }
 
-export function createSellerName(user: { name: string; surname: string }): string {
+export function createSellerName(user: {
+  name: string;
+  surname: string;
+}): string {
   return `${user.name} ${user.surname}`;
 }

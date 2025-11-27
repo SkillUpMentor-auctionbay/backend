@@ -34,7 +34,8 @@ export class AuctionService {
   ) {}
 
   async createAuction(sellerId: string, createAuctionDto: CreateAuctionDto) {
-    const { title, description, startingPrice, endTime, imageUrl } = createAuctionDto;
+    const { title, description, startingPrice, endTime, imageUrl } =
+      createAuctionDto;
 
     if (new Date(endTime) <= new Date()) {
       throw new BadRequestException('End time must be in the future');
@@ -78,7 +79,10 @@ export class AuctionService {
         sellerId,
       });
 
-      await this.auctionSchedulerService.updateOrCreateAuctionEnd(auction.id, new Date(endTime));
+      await this.auctionSchedulerService.updateOrCreateAuctionEnd(
+        auction.id,
+        new Date(endTime),
+      );
 
       return auction;
     } catch (error) {
@@ -90,7 +94,11 @@ export class AuctionService {
     }
   }
 
-  async updateAuction(auctionId: string, sellerId: string, updateAuctionDto: UpdateAuctionDto) {
+  async updateAuction(
+    auctionId: string,
+    sellerId: string,
+    updateAuctionDto: UpdateAuctionDto,
+  ) {
     const existingAuction = await this.prisma.auction.findUnique({
       where: { id: auctionId },
     });
@@ -103,11 +111,19 @@ export class AuctionService {
       throw new ForbiddenException('You can only update your own auctions');
     }
 
-    if ('startingPrice' in updateAuctionDto && updateAuctionDto.startingPrice !== undefined) {
-      throw new BadRequestException('Starting price cannot be updated after auction creation');
+    if (
+      'startingPrice' in updateAuctionDto &&
+      updateAuctionDto.startingPrice !== undefined
+    ) {
+      throw new BadRequestException(
+        'Starting price cannot be updated after auction creation',
+      );
     }
 
-    if (updateAuctionDto.endTime && new Date(updateAuctionDto.endTime) <= new Date()) {
+    if (
+      updateAuctionDto.endTime &&
+      new Date(updateAuctionDto.endTime) <= new Date()
+    ) {
       throw new BadRequestException('End time must be in the future');
     }
 
@@ -119,8 +135,10 @@ export class AuctionService {
 
     try {
       const isEndTimeUpdated = updateAuctionDto.endTime !== undefined;
-      const endTimeChanged = isEndTimeUpdated &&
-        existingAuction.endTime.getTime() !== new Date(updateAuctionDto.endTime).getTime();
+      const endTimeChanged =
+        isEndTimeUpdated &&
+        existingAuction.endTime.getTime() !==
+          new Date(updateAuctionDto.endTime).getTime();
 
       const updatedAuction = await this.prisma.auction.update({
         where: { id: auctionId },
@@ -140,20 +158,30 @@ export class AuctionService {
       this.loggingService.logInfo('Auction updated successfully', {
         auctionId,
         sellerId,
-        customMessage: endTimeChanged ? 'End time changed' : 'End time unchanged',
+        customMessage: endTimeChanged
+          ? 'End time changed'
+          : 'End time unchanged',
         endTime: existingAuction.endTime,
-        newEndTime: endTimeChanged ? new Date(updateAuctionDto.endTime) : undefined,
+        newEndTime: endTimeChanged
+          ? new Date(updateAuctionDto.endTime)
+          : undefined,
       });
 
       // Only update the job if the endTime actually changed
       if (endTimeChanged) {
-        this.loggingService.logInfo('Updating auction end job due to endTime change', {
-          auctionId,
-          endTime: existingAuction.endTime,
-          newEndTime: new Date(updateAuctionDto.endTime),
-        });
+        this.loggingService.logInfo(
+          'Updating auction end job due to endTime change',
+          {
+            auctionId,
+            endTime: existingAuction.endTime,
+            newEndTime: new Date(updateAuctionDto.endTime),
+          },
+        );
 
-        await this.auctionSchedulerService.updateOrCreateAuctionEnd(auctionId, new Date(updateAuctionDto.endTime));
+        await this.auctionSchedulerService.updateOrCreateAuctionEnd(
+          auctionId,
+          new Date(updateAuctionDto.endTime),
+        );
       }
 
       return updatedAuction;
@@ -166,8 +194,10 @@ export class AuctionService {
     }
   }
 
-    
-  async getAuctionById(auctionId: string, userId?: string): Promise<DetailedAuctionDto> {
+  async getAuctionById(
+    auctionId: string,
+    userId?: string,
+  ): Promise<DetailedAuctionDto> {
     const auction = await this.prisma.auction.findUnique({
       where: { id: auctionId },
       include: {
@@ -221,7 +251,7 @@ export class AuctionService {
         profilePictureUrl: auction.seller.profile_picture_url,
       },
       createdAt: auction.createdAt,
-      bids: auction.bids.map(bid => ({
+      bids: auction.bids.map((bid) => ({
         id: bid.id,
         amount: Number(bid.amount),
         createdAt: bid.createdAt,
@@ -235,15 +265,18 @@ export class AuctionService {
     };
   }
 
-  
-  async placeBid(auctionId: string, bidderId: string, placeBidDto: PlaceBidDto): Promise<BidDto> {
+  async placeBid(
+    auctionId: string,
+    bidderId: string,
+    placeBidDto: PlaceBidDto,
+  ): Promise<BidDto> {
     return this.bidsService.placeBid(auctionId, bidderId, placeBidDto);
   }
 
   async validateAuctionOwnership(auctionId: string, userId: string) {
     const auction = await this.prisma.auction.findUnique({
       where: { id: auctionId },
-      select: { id: true, sellerId: true }
+      select: { id: true, sellerId: true },
     });
 
     if (!auction) {
@@ -267,7 +300,9 @@ export class AuctionService {
     }
 
     if (auction.sellerId !== userId) {
-      throw new ForbiddenException('You can only delete images from your own auctions');
+      throw new ForbiddenException(
+        'You can only delete images from your own auctions',
+      );
     }
 
     if (!auction.imageUrl) {
@@ -308,7 +343,7 @@ export class AuctionService {
 
     const auction = await this.prisma.auction.findUnique({
       where: { id: auctionId },
-      select: { title: true, imageUrl: true }
+      select: { title: true, imageUrl: true },
     });
 
     if (!auction) {
@@ -324,10 +359,13 @@ export class AuctionService {
     try {
       if (auction.imageUrl) {
         await this.fileUploadService.deleteAuctionImage(auction.imageUrl);
-        this.loggingService.logInfo('Deleted auction image during auction deletion', {
-          auctionId,
-          imageUrl: auction.imageUrl,
-        });
+        this.loggingService.logInfo(
+          'Deleted auction image during auction deletion',
+          {
+            auctionId,
+            imageUrl: auction.imageUrl,
+          },
+        );
       }
 
       await this.prisma.auction.delete({
@@ -353,13 +391,9 @@ export class AuctionService {
 
   async getAuctions(
     queryDto: AuctionQueryDto,
-    userId?: string
+    userId?: string,
   ): Promise<AuctionListResponseDto> {
-    const {
-      filter,
-      page = 1,
-      limit = 500,
-    } = queryDto;
+    const { filter, page = 1, limit = 500 } = queryDto;
 
     const skip = (page - 1) * limit;
     let auctionIds: string[] = [];
@@ -390,7 +424,8 @@ export class AuctionService {
         break;
     }
 
-    const where: any = filter === AuctionFilter.ALL ? {} : { id: { in: auctionIds } };
+    const where: any =
+      filter === AuctionFilter.ALL ? {} : { id: { in: auctionIds } };
 
     if (filter === AuctionFilter.BID) {
       const now = new Date();
@@ -436,7 +471,6 @@ export class AuctionService {
       const currentPrice = calculateCurrentPrice(auction);
       const status = calculateAuctionStatus(auction, userId);
 
-      
       return {
         id: auction.id,
         title: auction.title,
@@ -466,7 +500,7 @@ export class AuctionService {
       where: { sellerId: userId },
       select: { id: true },
     });
-    return auctions.map(a => a.id);
+    return auctions.map((a) => a.id);
   }
 
   private async getBiddedAuctionIds(userId: string): Promise<string[]> {
@@ -477,14 +511,14 @@ export class AuctionService {
         bidderId: userId,
         auction: {
           endTime: {
-            gt: now
-          }
-        }
+            gt: now,
+          },
+        },
       },
       select: { auctionId: true },
       distinct: ['auctionId'],
     });
-    return userBids.map(bid => bid.auctionId);
+    return userBids.map((bid) => bid.auctionId);
   }
 
   private async getWonAuctionIds(userId: string): Promise<string[]> {
@@ -506,11 +540,11 @@ export class AuctionService {
     });
 
     return userBidAuctions
-      .filter(auction => {
+      .filter((auction) => {
         const highestBid = calculateCurrentPrice(auction);
         const userBid = getUserBidAmount(auction, userId);
         return userBid && userBid >= highestBid;
       })
-      .map(a => a.id);
+      .map((a) => a.id);
   }
 }

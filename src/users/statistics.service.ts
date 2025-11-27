@@ -15,7 +15,6 @@ export class StatisticsService {
     private readonly loggingService: LoggingService,
   ) {}
 
-
   async getUserStatistics(userId: string): Promise<UserStatisticsDto> {
     this.loggingService.logInfo('Fetching user statistics', { userId });
 
@@ -44,7 +43,11 @@ export class StatisticsService {
         },
       });
 
-      const statistics = await this.calculateStatistics(userAuctions, userBids, userId);
+      const statistics = await this.calculateStatistics(
+        userAuctions,
+        userBids,
+        userId,
+      );
 
       this.loggingService.logInfo('User statistics calculated successfully', {
         userId,
@@ -52,28 +55,31 @@ export class StatisticsService {
 
       return statistics;
     } catch (error) {
-      this.loggingService.logError('Failed to fetch user statistics', error, { userId });
+      this.loggingService.logError('Failed to fetch user statistics', error, {
+        userId,
+      });
       throw error;
     }
   }
 
-
   private async calculateStatistics(
     userAuctions: any[],
     userBids: any[],
-    userId: string
+    userId: string,
   ): Promise<UserStatisticsDto> {
     const now = new Date();
 
-    const transformedAuctions: AuctionWithBids[] = userAuctions.map(auction => ({
-      id: auction.id,
-      endTime: auction.endTime,
-      startingPrice: auction.startingPrice,
-      bids: auction.bids.map((bid: any) => ({
-        amount: bid.amount,
-        bidderId: bid.bidderId
-      }))
-    }));
+    const transformedAuctions: AuctionWithBids[] = userAuctions.map(
+      (auction) => ({
+        id: auction.id,
+        endTime: auction.endTime,
+        startingPrice: auction.startingPrice,
+        bids: auction.bids.map((bid: any) => ({
+          amount: bid.amount,
+          bidderId: bid.bidderId,
+        })),
+      }),
+    );
 
     const currentlyBiddingBids = userBids.filter((bid) => {
       const auction: AuctionWithBids = {
@@ -82,8 +88,8 @@ export class StatisticsService {
         startingPrice: bid.auction.startingPrice,
         bids: bid.auction.bids.map((b: any) => ({
           amount: b.amount,
-          bidderId: b.bidderId
-        }))
+          bidderId: b.bidderId,
+        })),
       };
       const auctionStatus = calculateAuctionStatus(auction, bid.bidderId);
       return auctionStatus === 'IN_PROGRESS' || auctionStatus === 'WINNING';
@@ -96,8 +102,8 @@ export class StatisticsService {
         startingPrice: bid.auction.startingPrice,
         bids: bid.auction.bids.map((b: any) => ({
           amount: b.amount,
-          bidderId: b.bidderId
-        }))
+          bidderId: b.bidderId,
+        })),
       };
       const auctionStatus = calculateAuctionStatus(auction, bid.bidderId);
       return auctionStatus === 'WINNING';
@@ -119,9 +125,10 @@ export class StatisticsService {
     };
   }
 
-
   async getUserStatisticsOptimized(userId: string): Promise<UserStatisticsDto> {
-    this.loggingService.logInfo('Fetching user statistics (optimized)', { userId });
+    this.loggingService.logInfo('Fetching user statistics (optimized)', {
+      userId,
+    });
     const now = new Date();
 
     try {
@@ -141,15 +148,14 @@ export class StatisticsService {
 
       const sellerEarnings = completedAuctions.reduce((sum, auction) => {
         if (auction.bids.length > 0) {
-
           const currentPrice = calculateCurrentPrice({
             id: auction.id,
             endTime: auction.endTime,
             startingPrice: auction.startingPrice,
             bids: auction.bids.map((b: any) => ({
               amount: b.amount,
-              bidderId: b.bidderId
-            }))
+              bidderId: b.bidderId,
+            })),
           });
           return sum + currentPrice;
         }
@@ -163,10 +169,10 @@ export class StatisticsService {
           bids: {
             some: {
               bidderId: userId,
-            }
-          }
+            },
+          },
         },
-        include: { bids: { orderBy: { amount: 'desc' } } }
+        include: { bids: { orderBy: { amount: 'desc' } } },
       });
 
       for (const auction of wonAuctions) {
@@ -176,8 +182,8 @@ export class StatisticsService {
           startingPrice: auction.startingPrice,
           bids: auction.bids.map((b: any) => ({
             amount: b.amount,
-            bidderId: b.bidderId
-          }))
+            bidderId: b.bidderId,
+          })),
         };
 
         const auctionStatus = calculateAuctionStatus(auctionWithBids, userId);
@@ -219,8 +225,8 @@ export class StatisticsService {
           startingPrice: bid.auction.startingPrice,
           bids: bid.auction.bids.map((b: any) => ({
             amount: b.amount,
-            bidderId: b.bidderId
-          }))
+            bidderId: b.bidderId,
+          })),
         };
         const auctionStatus = calculateAuctionStatus(auction, bid.bidderId);
         return auctionStatus === 'WINNING';
@@ -233,7 +239,11 @@ export class StatisticsService {
         currentlyWinning,
       };
     } catch (error) {
-      this.loggingService.logError('Failed to fetch user statistics (optimized)', error, { userId });
+      this.loggingService.logError(
+        'Failed to fetch user statistics (optimized)',
+        error,
+        { userId },
+      );
       throw error;
     }
   }

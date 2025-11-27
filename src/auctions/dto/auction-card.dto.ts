@@ -18,7 +18,8 @@ export class AuctionCardDto {
 
   @ApiProperty({
     description: 'The description of auction',
-    example: 'A beautiful vintage camera collection from the 1950s in excellent condition.',
+    example:
+      'A beautiful vintage camera collection from the 1950s in excellent condition.',
     type: String,
   })
   description: string;
@@ -53,7 +54,8 @@ export class AuctionCardDto {
   endTime: Date;
 
   @ApiProperty({
-    description: 'The status of the auction from the current user\'s perspective',
+    description:
+      "The status of the auction from the current user's perspective",
     enum: AuctionStatus,
     example: 'WINNING',
   })

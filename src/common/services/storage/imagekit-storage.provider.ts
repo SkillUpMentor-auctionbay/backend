@@ -18,7 +18,7 @@ export class ImageKitStorageProvider implements IStorageProvider {
     const privateKey = this.configService.get<string>('IMAGEKIT_PRIVATE_KEY');
     const urlEndpoint = this.configService.get<string>('IMAGEKIT_URL_ENDPOINT');
 
-    if (publicKey && privateKey && urlEndpoint && publicKey !== 'your_imagekit_public_key') {
+    if (publicKey && privateKey && urlEndpoint) {
       this.imagekit = new ImageKit({
         publicKey,
         privateKey,
@@ -30,20 +30,24 @@ export class ImageKitStorageProvider implements IStorageProvider {
       } as LogContext);
     } else {
       this.imagekit = null;
-      this.loggingService.logWarning('ImageKit storage provider skipped - missing configuration', {
-        publicKey: publicKey ? 'configured' : 'missing',
-        privateKey: privateKey ? 'configured' : 'missing',
-        urlEndpoint: urlEndpoint ? 'configured' : 'missing',
-      } as LogContext);
+      this.loggingService.logWarning(
+        'ImageKit storage provider skipped - missing configuration',
+        {
+          publicKey: publicKey ? 'configured' : 'missing',
+          privateKey: privateKey ? 'configured' : 'missing',
+          urlEndpoint: urlEndpoint ? 'configured' : 'missing',
+        } as LogContext,
+      );
     }
   }
 
   private validateFileExtension(originalName: string): string {
-    const fileExtension = originalName.toLowerCase().match(/\.[^.]*$/)?.[0] || '';
+    const fileExtension =
+      originalName.toLowerCase().match(/\.[^.]*$/)?.[0] || '';
 
     if (!this.allowedExtensions.includes(fileExtension)) {
       throw new BadRequestException(
-        `File extension ${fileExtension} is not allowed. Allowed extensions: ${this.allowedExtensions.join(', ')}`
+        `File extension ${fileExtension} is not allowed. Allowed extensions: ${this.allowedExtensions.join(', ')}`,
       );
     }
 
@@ -66,9 +70,14 @@ export class ImageKitStorageProvider implements IStorageProvider {
     return new Error('Unknown error occurred');
   }
 
-  async uploadProfilePicture(userId: string, file: Express.Multer.File): Promise<string> {
+  async uploadProfilePicture(
+    userId: string,
+    file: Express.Multer.File,
+  ): Promise<string> {
     if (!this.imagekit) {
-      throw new BadRequestException('ImageKit storage provider not initialized');
+      throw new BadRequestException(
+        'ImageKit storage provider not initialized',
+      );
     }
 
     this.validateProfilePictureInput(userId, file);
@@ -88,17 +97,19 @@ export class ImageKitStorageProvider implements IStorageProvider {
         tags: [`user-${userId}`, 'profile-picture'],
       });
 
-      this.loggingService.logInfo('Profile picture uploaded to ImageKit successfully', {
-        userId,
-        fileName,
-        fileId: uploadResult.fileId,
-        url: uploadResult.url,
-        fileSize: file.size,
-        mimeType: file.mimetype,
-      } as LogContext);
+      this.loggingService.logInfo(
+        'Profile picture uploaded to ImageKit successfully',
+        {
+          userId,
+          fileName,
+          fileId: uploadResult.fileId,
+          url: uploadResult.url,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+        } as LogContext,
+      );
 
       return uploadResult.url;
-
     } catch (error) {
       this.loggingService.logError(
         'Failed to upload profile picture to ImageKit',
@@ -119,7 +130,10 @@ export class ImageKitStorageProvider implements IStorageProvider {
     }
   }
 
-  private validateProfilePictureInput(userId: string, file: Express.Multer.File): void {
+  private validateProfilePictureInput(
+    userId: string,
+    file: Express.Multer.File,
+  ): void {
     if (!userId || typeof userId !== 'string') {
       throw new BadRequestException('Invalid user ID provided');
     }
@@ -139,16 +153,19 @@ export class ImageKitStorageProvider implements IStorageProvider {
       const files = Array.isArray(searchResult) ? searchResult : [];
 
       if (files.length > 0) {
-        const deletePromises = files.map(file =>
-          this.imagekit.deleteFile(file.fileId)
+        const deletePromises = files.map((file) =>
+          this.imagekit.deleteFile(file.fileId),
         );
 
         await Promise.allSettled(deletePromises);
 
-        this.loggingService.logInfo('Deleted existing profile pictures from ImageKit', {
-          userId,
-          deletedCount: files.length,
-        } as LogContext);
+        this.loggingService.logInfo(
+          'Deleted existing profile pictures from ImageKit',
+          {
+            userId,
+            deletedCount: files.length,
+          } as LogContext,
+        );
       }
     } catch (error) {
       this.loggingService.logWarning(
@@ -163,7 +180,9 @@ export class ImageKitStorageProvider implements IStorageProvider {
 
   async uploadAuctionImage(file: Express.Multer.File): Promise<string> {
     if (!this.imagekit) {
-      throw new BadRequestException('ImageKit storage provider not initialized');
+      throw new BadRequestException(
+        'ImageKit storage provider not initialized',
+      );
     }
 
     this.validateAuctionImageInput(file);
@@ -180,16 +199,18 @@ export class ImageKitStorageProvider implements IStorageProvider {
         tags: ['auction-image'],
       });
 
-      this.loggingService.logInfo('Auction image uploaded to ImageKit successfully', {
-        fileName,
-        fileId: uploadResult.fileId,
-        url: uploadResult.url,
-        fileSize: file.size,
-        mimeType: file.mimetype,
-      } as LogContext);
+      this.loggingService.logInfo(
+        'Auction image uploaded to ImageKit successfully',
+        {
+          fileName,
+          fileId: uploadResult.fileId,
+          url: uploadResult.url,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+        } as LogContext,
+      );
 
       return uploadResult.url;
-
     } catch (error) {
       this.loggingService.logError(
         'Failed to upload auction image to ImageKit',
@@ -227,7 +248,9 @@ export class ImageKitStorageProvider implements IStorageProvider {
     }
 
     if (!this.imagekit) {
-      throw new BadRequestException('ImageKit storage provider not initialized');
+      throw new BadRequestException(
+        'ImageKit storage provider not initialized',
+      );
     }
 
     try {
@@ -239,22 +262,30 @@ export class ImageKitStorageProvider implements IStorageProvider {
       const files = Array.isArray(searchResult) ? searchResult : [];
 
       if (files.length > 0) {
-        const deletePromises = files.map(file =>
-          this.imagekit.deleteFile(file.fileId)
+        const deletePromises = files.map((file) =>
+          this.imagekit.deleteFile(file.fileId),
         );
 
         const results = await Promise.allSettled(deletePromises);
-        const deletedCount = results.filter(result => result.status === 'fulfilled').length;
+        const deletedCount = results.filter(
+          (result) => result.status === 'fulfilled',
+        ).length;
 
-        this.loggingService.logInfo('Profile pictures deleted from ImageKit successfully', {
-          userId,
-          deletedCount,
-          totalFound: files.length,
-        } as LogContext);
+        this.loggingService.logInfo(
+          'Profile pictures deleted from ImageKit successfully',
+          {
+            userId,
+            deletedCount,
+            totalFound: files.length,
+          } as LogContext,
+        );
       } else {
-        this.loggingService.logInfo('No existing profile picture found in ImageKit', {
-          userId,
-        } as LogContext);
+        this.loggingService.logInfo(
+          'No existing profile picture found in ImageKit',
+          {
+            userId,
+          } as LogContext,
+        );
       }
     } catch (error) {
       this.loggingService.logError(
@@ -273,7 +304,9 @@ export class ImageKitStorageProvider implements IStorageProvider {
     }
 
     if (!this.imagekit) {
-      throw new BadRequestException('ImageKit storage provider not initialized');
+      throw new BadRequestException(
+        'ImageKit storage provider not initialized',
+      );
     }
 
     try {
@@ -293,16 +326,22 @@ export class ImageKitStorageProvider implements IStorageProvider {
         const fileId = files[0].fileId;
         await this.imagekit.deleteFile(fileId);
 
-        this.loggingService.logInfo('Auction image deleted from ImageKit successfully', {
-          imageUrl,
-          fileName,
-          fileId,
-        } as LogContext);
+        this.loggingService.logInfo(
+          'Auction image deleted from ImageKit successfully',
+          {
+            imageUrl,
+            fileName,
+            fileId,
+          } as LogContext,
+        );
       } else {
-        this.loggingService.logWarning('Auction image not found in ImageKit for deletion', {
-          imageUrl,
-          fileName,
-        } as LogContext);
+        this.loggingService.logWarning(
+          'Auction image not found in ImageKit for deletion',
+          {
+            imageUrl,
+            fileName,
+          } as LogContext,
+        );
       }
     } catch (error) {
       this.loggingService.logError(
@@ -330,8 +369,9 @@ export class ImageKitStorageProvider implements IStorageProvider {
       const files = Array.isArray(searchResult) ? searchResult : [];
 
       if (files.length > 0) {
-        const sortedFiles = files.sort((a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        const sortedFiles = files.sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
         );
         return sortedFiles[0].url;
       }
@@ -349,7 +389,10 @@ export class ImageKitStorageProvider implements IStorageProvider {
     }
   }
 
-  async cleanupOldProfilePictures(userId: string, excludeFileName?: string): Promise<void> {
+  async cleanupOldProfilePictures(
+    userId: string,
+    excludeFileName?: string,
+  ): Promise<void> {
     if (!userId || typeof userId !== 'string') {
       this.loggingService.logWarning('Invalid user ID provided for cleanup', {
         userId,
@@ -358,9 +401,12 @@ export class ImageKitStorageProvider implements IStorageProvider {
     }
 
     if (!this.imagekit) {
-      this.loggingService.logWarning('ImageKit storage provider not initialized for cleanup', {
-        userId,
-      } as LogContext);
+      this.loggingService.logWarning(
+        'ImageKit storage provider not initialized for cleanup',
+        {
+          userId,
+        } as LogContext,
+      );
       return;
     }
 
@@ -374,23 +420,28 @@ export class ImageKitStorageProvider implements IStorageProvider {
 
       if (files.length > 0) {
         const filesToDelete = excludeFileName
-          ? files.filter(file => file.name !== excludeFileName)
+          ? files.filter((file) => file.name !== excludeFileName)
           : files;
 
         if (filesToDelete.length > 0) {
-          const deletePromises = filesToDelete.map(file =>
-            this.imagekit.deleteFile(file.fileId)
+          const deletePromises = filesToDelete.map((file) =>
+            this.imagekit.deleteFile(file.fileId),
           );
 
           const results = await Promise.allSettled(deletePromises);
-          const deletedCount = results.filter(result => result.status === 'fulfilled').length;
+          const deletedCount = results.filter(
+            (result) => result.status === 'fulfilled',
+          ).length;
 
-          this.loggingService.logInfo('Old profile pictures cleaned up from ImageKit', {
-            userId,
-            deletedCount,
-            totalFound: filesToDelete.length,
-            excludedFile: excludeFileName,
-          } as LogContext);
+          this.loggingService.logInfo(
+            'Old profile pictures cleaned up from ImageKit',
+            {
+              userId,
+              deletedCount,
+              totalFound: filesToDelete.length,
+              excludedFile: excludeFileName,
+            } as LogContext,
+          );
         }
       }
     } catch (error) {
@@ -407,9 +458,12 @@ export class ImageKitStorageProvider implements IStorageProvider {
 
   async cleanupUserProfilePictures(userIds: string[]): Promise<void> {
     if (!this.imagekit) {
-      this.loggingService.logWarning('ImageKit storage provider not initialized for user profile pictures cleanup', {
-        userIds,
-      } as LogContext);
+      this.loggingService.logWarning(
+        'ImageKit storage provider not initialized for user profile pictures cleanup',
+        {
+          userIds,
+        } as LogContext,
+      );
       return;
     }
 
@@ -431,17 +485,22 @@ export class ImageKitStorageProvider implements IStorageProvider {
         }
 
         if (filesToDelete.length > 0) {
-          const deletePromises = filesToDelete.map(fileId =>
-            this.imagekit.deleteFile(fileId)
+          const deletePromises = filesToDelete.map((fileId) =>
+            this.imagekit.deleteFile(fileId),
           );
 
           const results = await Promise.allSettled(deletePromises);
-          const deletedCount = results.filter(result => result.status === 'fulfilled').length;
+          const deletedCount = results.filter(
+            (result) => result.status === 'fulfilled',
+          ).length;
 
-          this.loggingService.logInfo('Orphaned profile pictures cleaned up from ImageKit', {
-            deletedCount,
-            totalFound: filesToDelete.length,
-          } as LogContext);
+          this.loggingService.logInfo(
+            'Orphaned profile pictures cleaned up from ImageKit',
+            {
+              deletedCount,
+              totalFound: filesToDelete.length,
+            } as LogContext,
+          );
         }
       }
     } catch (error) {
@@ -455,9 +514,14 @@ export class ImageKitStorageProvider implements IStorageProvider {
     }
   }
 
-  async cleanupOrphanedAuctionImages(existingImageUrls: string[]): Promise<void> {
+  async cleanupOrphanedAuctionImages(
+    existingImageUrls: string[],
+  ): Promise<void> {
     if (!this.imagekit) {
-      this.loggingService.logWarning('ImageKit storage provider not initialized for orphaned auction images cleanup', {} as LogContext);
+      this.loggingService.logWarning(
+        'ImageKit storage provider not initialized for orphaned auction images cleanup',
+        {} as LogContext,
+      );
       return;
     }
 
@@ -469,7 +533,9 @@ export class ImageKitStorageProvider implements IStorageProvider {
       const files = Array.isArray(searchResult) ? searchResult : [];
 
       if (files.length > 0) {
-        const existingFileNames = new Set(existingImageUrls.map(url => url.split('/').pop()));
+        const existingFileNames = new Set(
+          existingImageUrls.map((url) => url.split('/').pop()),
+        );
         const filesToDelete: string[] = [];
 
         for (const file of files) {
@@ -484,17 +550,22 @@ export class ImageKitStorageProvider implements IStorageProvider {
         }
 
         if (filesToDelete.length > 0) {
-          const deletePromises = filesToDelete.map(fileId =>
-            this.imagekit.deleteFile(fileId)
+          const deletePromises = filesToDelete.map((fileId) =>
+            this.imagekit.deleteFile(fileId),
           );
 
           const results = await Promise.allSettled(deletePromises);
-          const deletedCount = results.filter(result => result.status === 'fulfilled').length;
+          const deletedCount = results.filter(
+            (result) => result.status === 'fulfilled',
+          ).length;
 
-          this.loggingService.logInfo('Orphaned auction images cleaned up from ImageKit', {
-            deletedCount,
-            totalFound: filesToDelete.length,
-          } as LogContext);
+          this.loggingService.logInfo(
+            'Orphaned auction images cleaned up from ImageKit',
+            {
+              deletedCount,
+              totalFound: filesToDelete.length,
+            } as LogContext,
+          );
         }
       }
     } catch (error) {
@@ -524,7 +595,9 @@ export class ImageKitStorageProvider implements IStorageProvider {
         path: 'profile-pictures/',
       });
 
-      const files = Array.isArray(profilePicturesResult) ? profilePicturesResult : [];
+      const files = Array.isArray(profilePicturesResult)
+        ? profilePicturesResult
+        : [];
       const totalFiles = files.length;
       let totalSize = 0;
       for (const file of files) {

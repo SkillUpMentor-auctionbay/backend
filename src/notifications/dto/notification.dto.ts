@@ -40,7 +40,8 @@ export class NotificationDto {
   id: string;
 
   @ApiProperty({
-    description: 'The price of the notification - null for outbid, number for won notifications',
+    description:
+      'The price of the notification - null for outbid, number for won notifications',
     example: 150,
     type: Number,
     required: false,

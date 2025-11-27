@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  OnModuleInit,
-  OnModuleDestroy,
-} from '@nestjs/common';
+import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaClient } from '@prisma/client';
 import { LoggingService } from '../common/services/logging.service';
@@ -41,10 +37,13 @@ export class PrismaService
   async onModuleInit() {
     try {
       await this.$connect();
-      this.loggingService.logInfo('Database connection established successfully');
+      this.loggingService.logInfo(
+        'Database connection established successfully',
+      );
 
       this.$on('query', (e) => {
-        const isDevelopment = this.configService.get('NODE_ENV') === 'development';
+        const isDevelopment =
+          this.configService.get('NODE_ENV') === 'development';
         if (isDevelopment) {
           this.loggingService.logDebug('Database query executed', {
             query: { query: e.query, params: e.params },
@@ -73,7 +72,10 @@ export class PrismaService
         });
       });
     } catch (error) {
-      this.loggingService.logError('Failed to connect to database', error as Error);
+      this.loggingService.logError(
+        'Failed to connect to database',
+        error as Error,
+      );
       throw error;
     }
   }
@@ -83,7 +85,10 @@ export class PrismaService
       await this.$disconnect();
       this.loggingService.logInfo('Database connection closed');
     } catch (error) {
-      this.loggingService.logError('Error closing database connection', error as Error);
+      this.loggingService.logError(
+        'Error closing database connection',
+        error as Error,
+      );
     }
   }
 
@@ -92,13 +97,18 @@ export class PrismaService
       await this.$queryRaw`SELECT 1`;
       return true;
     } catch (error) {
-      this.loggingService.logError('Database health check failed', error as Error);
+      this.loggingService.logError(
+        'Database health check failed',
+        error as Error,
+      );
       return false;
     }
   }
 
   async shutdown(): Promise<void> {
-    this.loggingService.logInfo('Initiating graceful shutdown of database connection...');
+    this.loggingService.logInfo(
+      'Initiating graceful shutdown of database connection...',
+    );
     await this.onModuleDestroy();
   }
 }

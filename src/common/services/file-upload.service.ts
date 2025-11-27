@@ -30,16 +30,12 @@ export class FileUploadService {
     try {
       return await storageProvider.uploadProfilePicture(userId, file);
     } catch (error) {
-      this.loggingService.logError(
-        'Failed to save profile picture',
-        error,
-        {
-          userId,
-          fileName: file.originalname,
-          fileSize: file.size,
-          storageProvider: this.storageFactory.getStorageProviderName(),
-        } as LogContext,
-      );
+      this.loggingService.logError('Failed to save profile picture', error, {
+        userId,
+        fileName: file.originalname,
+        fileSize: file.size,
+        storageProvider: this.storageFactory.getStorageProviderName(),
+      } as LogContext);
       throw error;
     }
   }
@@ -55,19 +51,18 @@ export class FileUploadService {
     try {
       await storageProvider.deleteProfilePicture(userId);
     } catch (error) {
-      this.loggingService.logError(
-        'Failed to delete profile picture',
-        error,
-        {
-          userId,
-          storageProvider: this.storageFactory.getStorageProviderName(),
-        } as LogContext,
-      );
+      this.loggingService.logError('Failed to delete profile picture', error, {
+        userId,
+        storageProvider: this.storageFactory.getStorageProviderName(),
+      } as LogContext);
       throw error;
     }
   }
 
-  async cleanupOldProfilePictures(userId: string, excludeFileName?: string): Promise<void> {
+  async cleanupOldProfilePictures(
+    userId: string,
+    excludeFileName?: string,
+  ): Promise<void> {
     const storageProvider = this.getStorageProvider();
 
     this.loggingService.logInfo('Cleaning up old profile pictures', {
@@ -98,14 +93,10 @@ export class FileUploadService {
     try {
       return await storageProvider.getProfilePictureUrl(userId);
     } catch (error) {
-      this.loggingService.logError(
-        'Failed to get profile picture URL',
-        error,
-        {
-          userId,
-          storageProvider: this.storageFactory.getStorageProviderName(),
-        } as LogContext,
-      );
+      this.loggingService.logError('Failed to get profile picture URL', error, {
+        userId,
+        storageProvider: this.storageFactory.getStorageProviderName(),
+      } as LogContext);
       return null;
     }
   }
@@ -143,13 +134,9 @@ export class FileUploadService {
     try {
       return await storageProvider.getStorageStats();
     } catch (error) {
-      this.loggingService.logError(
-        'Failed to get storage stats',
-        error,
-        {
-          storageProvider: this.storageFactory.getStorageProviderName(),
-        } as LogContext,
-      );
+      this.loggingService.logError('Failed to get storage stats', error, {
+        storageProvider: this.storageFactory.getStorageProviderName(),
+      } as LogContext);
       return {
         totalFiles: 0,
         totalSize: 0,
@@ -170,15 +157,11 @@ export class FileUploadService {
     try {
       return await storageProvider.uploadAuctionImage(file);
     } catch (error) {
-      this.loggingService.logError(
-        'Failed to save auction image',
-        error,
-        {
-          fileName: file.originalname,
-          fileSize: file.size,
-          storageProvider: this.storageFactory.getStorageProviderName(),
-        } as LogContext,
-      );
+      this.loggingService.logError('Failed to save auction image', error, {
+        fileName: file.originalname,
+        fileSize: file.size,
+        storageProvider: this.storageFactory.getStorageProviderName(),
+      } as LogContext);
       throw error;
     }
   }
@@ -194,19 +177,17 @@ export class FileUploadService {
     try {
       await storageProvider.deleteAuctionImage(imageUrl);
     } catch (error) {
-      this.loggingService.logError(
-        'Failed to delete auction image',
-        error,
-        {
-          imageUrl,
-          storageProvider: this.storageFactory.getStorageProviderName(),
-        } as LogContext,
-      );
+      this.loggingService.logError('Failed to delete auction image', error, {
+        imageUrl,
+        storageProvider: this.storageFactory.getStorageProviderName(),
+      } as LogContext);
       throw error;
     }
   }
 
-  async cleanupOrphanedAuctionImages(existingImageUrls: string[]): Promise<void> {
+  async cleanupOrphanedAuctionImages(
+    existingImageUrls: string[],
+  ): Promise<void> {
     const storageProvider = this.getStorageProvider();
 
     this.loggingService.logInfo('Cleaning up orphaned auction images', {

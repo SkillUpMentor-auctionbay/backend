@@ -2,7 +2,7 @@ export enum AuctionStatus {
   IN_PROGRESS = 'IN_PROGRESS',
   WINNING = 'WINNING',
   OUTBID = 'OUTBID',
-  DONE = 'DONE'
+  DONE = 'DONE',
 }
 
 export type AuctionStatusType = AuctionStatus;
@@ -22,12 +22,12 @@ export function calculateCurrentPrice(auction: AuctionWithBids): number {
     return Number(auction.startingPrice);
   }
 
-  return Math.max(...auction.bids.map(bid => Number(bid.amount)));
+  return Math.max(...auction.bids.map((bid) => Number(bid.amount)));
 }
 
 export function calculateAuctionStatus(
   auction: AuctionWithBids,
-  userId?: string
+  userId?: string,
 ): AuctionStatus {
   const now = new Date();
   const isExpired = auction.endTime < now;
@@ -40,27 +40,29 @@ export function calculateAuctionStatus(
     return AuctionStatus.IN_PROGRESS;
   }
 
-  const userBid = auction.bids.find(bid => bid.bidderId === userId);
+  const userBid = auction.bids.find((bid) => bid.bidderId === userId);
   if (!userBid) {
     return AuctionStatus.IN_PROGRESS;
   }
 
   const highestBid = calculateCurrentPrice(auction);
-  return Number(userBid.amount) >= highestBid ? AuctionStatus.WINNING : AuctionStatus.OUTBID;
+  return Number(userBid.amount) >= highestBid
+    ? AuctionStatus.WINNING
+    : AuctionStatus.OUTBID;
 }
 
 export function getUserBidAmount(
   auction: AuctionWithBids,
-  userId: string
+  userId: string,
 ): number | undefined {
-  const userBid = auction.bids.find(bid => bid.bidderId === userId);
+  const userBid = auction.bids.find((bid) => bid.bidderId === userId);
   return userBid ? Number(userBid.amount) : undefined;
 }
 
 export function isValidBidAmount(
   bidAmount: number,
   currentPrice: number,
-  minIncrement: number = 1
+  minIncrement: number = 1,
 ): boolean {
   return bidAmount > currentPrice && bidAmount >= currentPrice + minIncrement;
 }

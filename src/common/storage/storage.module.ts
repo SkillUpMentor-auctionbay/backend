@@ -17,14 +17,11 @@ import { ImageKitStorageProvider } from '../services/storage/imagekit-storage.pr
     FileUploadService,
     {
       provide: 'IStorageProvider',
-      useFactory: (storageFactory: StorageFactory) => storageFactory.getStorageProvider(),
+      useFactory: (storageFactory: StorageFactory) =>
+        storageFactory.getStorageProvider(),
       inject: [StorageFactory],
     },
   ],
-  exports: [
-    FileUploadService,
-    StorageFactory,
-    'IStorageProvider',
-  ],
+  exports: [FileUploadService, StorageFactory, 'IStorageProvider'],
 })
 export class StorageModule {}

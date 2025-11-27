@@ -12,7 +12,13 @@ import { PrismaModule } from '../prisma/prisma.module';
 @Module({
   imports: [PrismaModule, NotificationsModule, StorageModule],
   controllers: [AuctionController],
-  providers: [AuctionService, AuctionSchedulerService, AuctionEndService, BidsService, LoggingService],
+  providers: [
+    AuctionService,
+    AuctionSchedulerService,
+    AuctionEndService,
+    BidsService,
+    LoggingService,
+  ],
   exports: [AuctionService, BidsService],
 })
 export class AuctionModule {}

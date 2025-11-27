@@ -31,9 +31,24 @@ export class NotificationsController {
   @Get()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT')
-  @ApiQuery({ name: 'isCleared', required: false, type: Boolean, description: 'Filter by cleared status' })
-  @ApiQuery({ name: 'page', required: false, type: Number, description: 'Page number for pagination' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Number of items per page' })
+  @ApiQuery({
+    name: 'isCleared',
+    required: false,
+    type: Boolean,
+    description: 'Filter by cleared status',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page number for pagination',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Number of items per page',
+  })
   @ApiResponse({
     status: 200,
     description: 'User notifications retrieved successfully',
@@ -48,7 +63,10 @@ export class NotificationsController {
       },
     },
   })
-  async getUserNotifications(@Request() req, @Query() queryDto: NotificationQueryDto) {
+  async getUserNotifications(
+    @Request() req,
+    @Query() queryDto: NotificationQueryDto,
+  ) {
     const userId = req.user.id;
 
     if (!userId) {
@@ -60,7 +78,10 @@ export class NotificationsController {
       query: queryDto,
     });
 
-    const result = await this.notificationsService.getUserNotifications(userId, queryDto);
+    const result = await this.notificationsService.getUserNotifications(
+      userId,
+      queryDto,
+    );
 
     return {
       statusCode: HttpStatus.OK,
@@ -111,7 +132,7 @@ export class NotificationsController {
       lastEventId,
       hasToken: !!token,
       origin: req.headers.origin,
-      userAgent: req.headers['user-agent']
+      userAgent: req.headers['user-agent'],
     });
 
     const corsOrigin = process.env.FRONTEND_URL || 'http://localhost:3000';
@@ -119,16 +140,20 @@ export class NotificationsController {
     response.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
+      Connection: 'keep-alive',
       'Access-Control-Allow-Origin': corsOrigin,
-      'Access-Control-Allow-Headers': 'Cache-Control, Authorization, Last-Event-ID',
+      'Access-Control-Allow-Headers':
+        'Cache-Control, Authorization, Last-Event-ID',
       'Access-Control-Allow-Credentials': 'true',
     });
 
     this.sseService.addConnection(userId, response);
 
     req.on('close', () => {
-      this.loggingService.logInfo('Client disconnected from notification stream', { userId });
+      this.loggingService.logInfo(
+        'Client disconnected from notification stream',
+        { userId },
+      );
       this.sseService.removeConnection(userId, response);
     });
 
@@ -138,19 +163,24 @@ export class NotificationsController {
 
     if (lastEventId) {
       try {
-        const recentNotifications = await this.notificationsService.getUserNotifications(userId, {
-          page: 1,
-          limit: 10,
-        });
+        const recentNotifications =
+          await this.notificationsService.getUserNotifications(userId, {
+            page: 1,
+            limit: 10,
+          });
 
         for (const notification of recentNotifications.notifications) {
           response.write(`event: notification\n`);
           response.write(`data: ${JSON.stringify(notification)}\n\n`);
         }
       } catch (error) {
-        this.loggingService.logError('Failed to send recent notifications on reconnection', error as Error, {
-          userId,
-        });
+        this.loggingService.logError(
+          'Failed to send recent notifications on reconnection',
+          error as Error,
+          {
+            userId,
+          },
+        );
       }
     }
 

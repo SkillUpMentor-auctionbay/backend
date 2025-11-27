@@ -8,8 +8,14 @@ import { randomUUID } from 'node:crypto';
 @Injectable()
 export class LocalStorageProvider implements IStorageProvider {
   private readonly uploadsDir = './uploads';
-  private readonly profilePicturesDir = path.join(this.uploadsDir, 'profile-pictures');
-  private readonly auctionImagesDir = path.join(this.uploadsDir, 'auction-images');
+  private readonly profilePicturesDir = path.join(
+    this.uploadsDir,
+    'profile-pictures',
+  );
+  private readonly auctionImagesDir = path.join(
+    this.uploadsDir,
+    'auction-images',
+  );
   private readonly allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
 
   constructor(private readonly loggingService: LoggingService) {
@@ -57,7 +63,7 @@ export class LocalStorageProvider implements IStorageProvider {
 
     if (!this.allowedExtensions.includes(fileExtension)) {
       throw new BadRequestException(
-        `File extension ${fileExtension} is not allowed. Allowed extensions: ${this.allowedExtensions.join(', ')}`
+        `File extension ${fileExtension} is not allowed. Allowed extensions: ${this.allowedExtensions.join(', ')}`,
       );
     }
 
@@ -80,7 +86,10 @@ export class LocalStorageProvider implements IStorageProvider {
     return new Error('Unknown error occurred');
   }
 
-  async uploadProfilePicture(userId: string, file: Express.Multer.File): Promise<string> {
+  async uploadProfilePicture(
+    userId: string,
+    file: Express.Multer.File,
+  ): Promise<string> {
     this.validateProfilePictureInput(userId, file);
 
     const fileExtension = this.validateFileExtension(file.originalname);
@@ -105,14 +114,16 @@ export class LocalStorageProvider implements IStorageProvider {
       } as LogContext);
 
       return `/static/profile-pictures/${fileName}`;
-
     } catch (error) {
       await this.cleanupFailedFile(newFilePath, userId);
       throw this.handleProfilePictureError(error, userId, file);
     }
   }
 
-  private validateProfilePictureInput(userId: string, file: Express.Multer.File): void {
+  private validateProfilePictureInput(
+    userId: string,
+    file: Express.Multer.File,
+  ): void {
     if (!userId || typeof userId !== 'string') {
       throw new BadRequestException('Invalid user ID provided');
     }
@@ -125,50 +136,69 @@ export class LocalStorageProvider implements IStorageProvider {
   private async getUserProfilePictureFiles(userId: string): Promise<string[]> {
     try {
       const files = fs.readdirSync(this.profilePicturesDir);
-      return files.filter(file => file.startsWith(`${userId}_avatar`));
+      return files.filter((file) => file.startsWith(`${userId}_avatar`));
     } catch (error) {
-      this.loggingService.logWarning('Could not read profile pictures directory for cleanup check', {
-        userId,
-        error: (error as Error).message,
-      } as LogContext);
+      this.loggingService.logWarning(
+        'Could not read profile pictures directory for cleanup check',
+        {
+          userId,
+          error: (error as Error).message,
+        } as LogContext,
+      );
       return [];
     }
   }
 
-  private async writeProfilePictureFile(filePath: string, buffer: Buffer): Promise<void> {
+  private async writeProfilePictureFile(
+    filePath: string,
+    buffer: Buffer,
+  ): Promise<void> {
     this.ensureDirectoriesExist();
     fs.writeFileSync(filePath, buffer);
   }
 
-  private async verifyFileIntegrity(filePath: string, expectedSize: number): Promise<void> {
+  private async verifyFileIntegrity(
+    filePath: string,
+    expectedSize: number,
+  ): Promise<void> {
     const stats = fs.statSync(filePath);
     if (stats.size !== expectedSize) {
       throw new Error('File size mismatch after write');
     }
   }
 
-  private async cleanupFailedFile(filePath: string | null, userId: string): Promise<void> {
+  private async cleanupFailedFile(
+    filePath: string | null,
+    userId: string,
+  ): Promise<void> {
     if (!filePath || !fs.existsSync(filePath)) {
       return;
     }
 
     try {
       fs.unlinkSync(filePath);
-      this.loggingService.logInfo('Cleaned up new profile picture due to error', {
-        userId,
-        filePath,
-      } as LogContext);
+      this.loggingService.logInfo(
+        'Cleaned up new profile picture due to error',
+        {
+          userId,
+          filePath,
+        } as LogContext,
+      );
     } catch (cleanupError) {
-      this.loggingService.logError('Failed to cleanup new file after error', cleanupError, {
-        filePath,
-      } as LogContext);
+      this.loggingService.logError(
+        'Failed to cleanup new file after error',
+        cleanupError,
+        {
+          filePath,
+        } as LogContext,
+      );
     }
   }
 
   private handleProfilePictureError(
     error: unknown,
     userId: string,
-    file: Express.Multer.File
+    file: Express.Multer.File,
   ): BadRequestException {
     this.loggingService.logError(
       'Failed to save profile picture',
@@ -195,7 +225,9 @@ export class LocalStorageProvider implements IStorageProvider {
 
     try {
       const files = fs.readdirSync(this.profilePicturesDir);
-      const userFiles = files.filter(file => file.startsWith(`${userId}_avatar`));
+      const userFiles = files.filter((file) =>
+        file.startsWith(`${userId}_avatar`),
+      );
 
       for (const file of userFiles) {
         const filePath = path.join(this.profilePicturesDir, file);
@@ -215,17 +247,16 @@ export class LocalStorageProvider implements IStorageProvider {
         return;
       }
 
-      this.loggingService.logError(
-        'Failed to delete profile picture',
-        error,
-        {
-          userId,
-        } as LogContext,
-      );
+      this.loggingService.logError('Failed to delete profile picture', error, {
+        userId,
+      } as LogContext);
     }
   }
 
-  async cleanupOldProfilePictures(userId: string, excludeFileName?: string): Promise<void> {
+  async cleanupOldProfilePictures(
+    userId: string,
+    excludeFileName?: string,
+  ): Promise<void> {
     if (!userId || typeof userId !== 'string') {
       this.loggingService.logWarning('Invalid user ID provided for cleanup', {
         userId,
@@ -235,10 +266,12 @@ export class LocalStorageProvider implements IStorageProvider {
 
     try {
       const files = fs.readdirSync(this.profilePicturesDir);
-      const userFiles = files.filter(file => file.startsWith(`${userId}_avatar`));
+      const userFiles = files.filter((file) =>
+        file.startsWith(`${userId}_avatar`),
+      );
 
       const filesToDelete = excludeFileName
-        ? userFiles.filter(file => file !== excludeFileName)
+        ? userFiles.filter((file) => file !== excludeFileName)
         : userFiles;
 
       for (const file of filesToDelete) {
@@ -251,11 +284,15 @@ export class LocalStorageProvider implements IStorageProvider {
             filePath,
           } as LogContext);
         } catch (deleteError) {
-          this.loggingService.logError('Failed to delete old profile picture file', deleteError, {
-            userId,
-            fileName: file,
-            filePath,
-          } as LogContext);
+          this.loggingService.logError(
+            'Failed to delete old profile picture file',
+            deleteError,
+            {
+              userId,
+              fileName: file,
+              filePath,
+            } as LogContext,
+          );
         }
       }
 
@@ -281,7 +318,9 @@ export class LocalStorageProvider implements IStorageProvider {
   async getProfilePictureUrl(userId: string): Promise<string | null> {
     try {
       const files = fs.readdirSync(this.profilePicturesDir);
-      const userFile = files.find(file => file.startsWith(`${userId}_avatar`));
+      const userFile = files.find((file) =>
+        file.startsWith(`${userId}_avatar`),
+      );
 
       if (userFile) {
         return `/static/profile-pictures/${userFile}`;
@@ -289,13 +328,9 @@ export class LocalStorageProvider implements IStorageProvider {
 
       return null;
     } catch (error) {
-      this.loggingService.logError(
-        'Failed to get profile picture URL',
-        error,
-        {
-          userId,
-        } as LogContext,
-      );
+      this.loggingService.logError('Failed to get profile picture URL', error, {
+        userId,
+      } as LogContext);
       return null;
     }
   }
@@ -381,7 +416,6 @@ export class LocalStorageProvider implements IStorageProvider {
       } as LogContext);
 
       return `/static/auction-images/${fileName}`;
-
     } catch (error) {
       await this.cleanupFailedAuctionImage(filePath);
       throw this.handleAuctionImageError(error, file);
@@ -400,7 +434,10 @@ export class LocalStorageProvider implements IStorageProvider {
     return `auction_${timestamp}_${randomString}${fileExtension}`;
   }
 
-  private async writeAndVerifyAuctionImage(filePath: string, buffer: Buffer): Promise<void> {
+  private async writeAndVerifyAuctionImage(
+    filePath: string,
+    buffer: Buffer,
+  ): Promise<void> {
     this.ensureDirectoriesExist();
     fs.writeFileSync(filePath, buffer);
 
@@ -421,15 +458,19 @@ export class LocalStorageProvider implements IStorageProvider {
         filePath,
       } as LogContext);
     } catch (cleanupError) {
-      this.loggingService.logError('Failed to cleanup new file after error', cleanupError, {
-        filePath,
-      } as LogContext);
+      this.loggingService.logError(
+        'Failed to cleanup new file after error',
+        cleanupError,
+        {
+          filePath,
+        } as LogContext,
+      );
     }
   }
 
   private handleAuctionImageError(
     error: unknown,
-    file: Express.Multer.File
+    file: Express.Multer.File,
   ): BadRequestException {
     this.loggingService.logError(
       'Failed to save auction image',
@@ -462,11 +503,14 @@ export class LocalStorageProvider implements IStorageProvider {
       const filePath = path.join(this.auctionImagesDir, fileName);
 
       if (!fs.existsSync(filePath)) {
-        this.loggingService.logWarning('Auction image file not found for deletion', {
-          imageUrl,
-          fileName,
-          filePath,
-        } as LogContext);
+        this.loggingService.logWarning(
+          'Auction image file not found for deletion',
+          {
+            imageUrl,
+            fileName,
+            filePath,
+          } as LogContext,
+        );
         return;
       }
 
@@ -477,23 +521,22 @@ export class LocalStorageProvider implements IStorageProvider {
         fileName,
         filePath,
       } as LogContext);
-
     } catch (error) {
-      this.loggingService.logError(
-        'Failed to delete auction image',
-        error,
-        {
-          imageUrl,
-        } as LogContext,
-      );
+      this.loggingService.logError('Failed to delete auction image', error, {
+        imageUrl,
+      } as LogContext);
       throw new BadRequestException('Failed to delete auction image');
     }
   }
 
-  async cleanupOrphanedAuctionImages(existingImageUrls: string[]): Promise<void> {
+  async cleanupOrphanedAuctionImages(
+    existingImageUrls: string[],
+  ): Promise<void> {
     try {
       const files = fs.readdirSync(this.auctionImagesDir);
-      const existingFileNames = new Set(existingImageUrls.map(url => url.split('/').at(-1)));
+      const existingFileNames = new Set(
+        existingImageUrls.map((url) => url.split('/').at(-1)),
+      );
 
       for (const file of files) {
         if (!existingFileNames.has(file)) {
@@ -513,10 +556,14 @@ export class LocalStorageProvider implements IStorageProvider {
                 fileAgeHours: fileAgeMs / (1000 * 60 * 60),
               } as LogContext);
             } catch (deleteError) {
-              this.loggingService.logError('Failed to delete orphaned auction image', deleteError, {
-                fileName: file,
-                filePath,
-              } as LogContext);
+              this.loggingService.logError(
+                'Failed to delete orphaned auction image',
+                deleteError,
+                {
+                  fileName: file,
+                  filePath,
+                } as LogContext,
+              );
             }
           }
         }

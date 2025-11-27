@@ -22,7 +22,11 @@ export class BidsService {
     private readonly loggingService: LoggingService,
   ) {}
 
-  async placeBid(auctionId: string, bidderId: string, placeBidDto: PlaceBidDto): Promise<BidDto> {
+  async placeBid(
+    auctionId: string,
+    bidderId: string,
+    placeBidDto: PlaceBidDto,
+  ): Promise<BidDto> {
     const { amount } = placeBidDto;
 
     const auction = await this.prisma.auction.findUnique({
@@ -52,7 +56,7 @@ export class BidsService {
 
     if (!isValidBidAmount(amount, currentPrice)) {
       throw new BadRequestException(
-        `Bid must be higher than current price (${currentPrice})`
+        `Bid must be higher than current price (${currentPrice})`,
       );
     }
 
@@ -88,7 +92,7 @@ export class BidsService {
 
         if (!isValidBidAmount(amount, latestCurrentPrice)) {
           throw new BadRequestException(
-            `Bid must be higher than current price (${latestCurrentPrice})`
+            `Bid must be higher than current price (${latestCurrentPrice})`,
           );
         }
 
@@ -161,7 +165,7 @@ export class BidsService {
       orderBy: { amount: 'desc' },
     });
 
-    return bids.map(bid => ({
+    return bids.map((bid) => ({
       id: bid.id,
       amount: Number(bid.amount),
       createdAt: bid.createdAt,
@@ -169,11 +173,7 @@ export class BidsService {
     }));
   }
 
-  async getUserBids(
-    userId: string,
-    page: number = 1,
-    limit: number = 10
-  ) {
+  async getUserBids(userId: string, page: number = 1, limit: number = 10) {
     const skip = (page - 1) * limit;
 
     const [bids, total] = await Promise.all([
@@ -201,7 +201,7 @@ export class BidsService {
     ]);
 
     return {
-      bids: bids.map(bid => ({
+      bids: bids.map((bid) => ({
         id: bid.id,
         amount: Number(bid.amount),
         createdAt: bid.createdAt,
