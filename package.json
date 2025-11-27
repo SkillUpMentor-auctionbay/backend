@@ -2,7 +2,7 @@
   "name": "auctionbay",
   "version": "0.0.1",
   "description": "",
-  "author": "",
+  "author": "Maks Klemenčič",
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
@@ -38,6 +38,7 @@
     "@nestjs/platform-express": "^10.0.0",
     "@nestjs/schedule": "^6.0.1",
     "@nestjs/swagger": "^7.4.0",
+    "@nestjs/cli": "^10.0.0",
     "@prisma/client": "^6.18.0",
     "@types/multer": "^2.0.0",
     "@types/nodemailer": "^7.0.3",
