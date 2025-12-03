@@ -24,8 +24,6 @@
     "db:deploy": "prisma migrate deploy",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "seed": "ts-node prisma/seed.ts",
-    "seed:reset": "npm run db:migrate:reset -- --skip-seed && npm run seed",
     "sonar": "sonar-scanner"
   },
   "dependencies": {

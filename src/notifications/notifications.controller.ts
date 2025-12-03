@@ -135,7 +135,8 @@ export class NotificationsController {
       userAgent: req.headers['user-agent'],
     });
 
-    const corsOrigin = process.env.CORS_ORIGIN || 'https://auctionbay-auctions.vercel.app';
+    const corsOrigin =
+      process.env.CORS_ORIGIN || 'https://auctionbay-auctions.vercel.app';
 
     response.writeHead(200, {
       'Content-Type': 'text/event-stream',

@@ -85,9 +85,8 @@ export class ImageKitStorageProvider implements IStorageProvider {
     const fileExtension = this.validateFileExtension(file.originalname);
 
     try {
-      await this.deleteExistingProfilePictures(userId);
-
-      const fileName = `${userId}_avatar${fileExtension}`;
+      const timestamp = Date.now();
+      const fileName = `${userId}_avatar_${timestamp}${fileExtension}`;
 
       const uploadResult = await this.imagekit.upload({
         file: file.buffer.toString('base64'),
@@ -256,10 +255,17 @@ export class ImageKitStorageProvider implements IStorageProvider {
     try {
       const searchResult = await this.imagekit.listFiles({
         path: 'profile-pictures/',
-        searchQuery: `name:${userId}_avatar*`,
+        searchQuery: `name HAS "${userId}"`,
       });
 
-      const files = Array.isArray(searchResult) ? searchResult : [];
+      let files = Array.isArray(searchResult) ? searchResult : [];
+
+      // Additional safety: only keep files that actually belong to this user
+      files = files.filter(
+        (file) =>
+          file.name.startsWith(`${userId}_avatar`) ||
+          file.name.startsWith(`${userId}_`),
+      );
 
       if (files.length > 0) {
         const deletePromises = files.map((file) =>
@@ -270,18 +276,37 @@ export class ImageKitStorageProvider implements IStorageProvider {
         const deletedCount = results.filter(
           (result) => result.status === 'fulfilled',
         ).length;
-
-        this.loggingService.logInfo(
-          'Profile pictures deleted from ImageKit successfully',
-          {
-            userId,
-            deletedCount,
-            totalFound: files.length,
-          } as LogContext,
+        const failedResults = results.filter(
+          (result) => result.status === 'rejected',
         );
+
+        this.loggingService.logInfo('Manual delete - deletion results', {
+          userId,
+          deletedCount,
+          failedCount: failedResults.length,
+          totalFound: files.length,
+          failureReasons: failedResults.map((r) =>
+            r.status === 'rejected' ? r.reason : 'unknown',
+          ),
+        } as LogContext);
+
+        if (failedResults.length > 0) {
+          this.loggingService.logError(
+            'Manual delete - some files failed to delete',
+            new Error(
+              failedResults
+                .map((r) => (r.status === 'rejected' ? r.reason : 'unknown'))
+                .join('; '),
+            ),
+            {
+              userId,
+              failedCount: failedResults.length,
+            } as LogContext,
+          );
+        }
       } else {
         this.loggingService.logInfo(
-          'No existing profile picture found in ImageKit',
+          'Manual delete - no existing profile picture found in ImageKit',
           {
             userId,
           } as LogContext,
@@ -363,10 +388,17 @@ export class ImageKitStorageProvider implements IStorageProvider {
     try {
       const searchResult = await this.imagekit.listFiles({
         path: 'profile-pictures/',
-        searchQuery: `name:${userId}_avatar*`,
+        searchQuery: `name HAS "${userId}"`,
       });
 
-      const files = Array.isArray(searchResult) ? searchResult : [];
+      let files = Array.isArray(searchResult) ? searchResult : [];
+
+      // Additional safety: only keep files that actually belong to this user
+      files = files.filter(
+        (file) =>
+          file.name.startsWith(`${userId}_avatar`) ||
+          file.name.startsWith(`${userId}_`),
+      );
 
       if (files.length > 0) {
         const sortedFiles = files.sort(
@@ -413,15 +445,30 @@ export class ImageKitStorageProvider implements IStorageProvider {
     try {
       const searchResult = await this.imagekit.listFiles({
         path: 'profile-pictures/',
-        searchQuery: `name:${userId}_avatar*`,
+        searchQuery: `name HAS "${userId}"`,
       });
 
-      const files = Array.isArray(searchResult) ? searchResult : [];
+      let files = Array.isArray(searchResult) ? searchResult : [];
+
+      files = files.filter(
+        (file) =>
+          file.name.startsWith(`${userId}_avatar`) ||
+          file.name.startsWith(`${userId}_`),
+      );
 
       if (files.length > 0) {
         const filesToDelete = excludeFileName
           ? files.filter((file) => file.name !== excludeFileName)
           : files;
+
+        this.loggingService.logInfo('Files marked for deletion', {
+          userId,
+          filesToDelete: filesToDelete.map((f) => ({
+            name: f.name,
+            fileId: f.fileId,
+          })),
+          filesToDeleteCount: filesToDelete.length,
+        } as LogContext);
 
         if (filesToDelete.length > 0) {
           const deletePromises = filesToDelete.map((file) =>
@@ -432,17 +479,50 @@ export class ImageKitStorageProvider implements IStorageProvider {
           const deletedCount = results.filter(
             (result) => result.status === 'fulfilled',
           ).length;
+          const failedResults = results.filter(
+            (result) => result.status === 'rejected',
+          );
 
+          this.loggingService.logInfo('Profile picture deletion results', {
+            userId,
+            deletedCount,
+            failedCount: failedResults.length,
+            totalAttempted: filesToDelete.length,
+            excludedFile: excludeFileName,
+            failureReasons: failedResults.map((r) =>
+              r.status === 'rejected' ? r.reason : 'unknown',
+            ),
+          } as LogContext);
+
+          if (failedResults.length > 0) {
+            this.loggingService.logError(
+              'Some profile pictures failed to delete',
+              new Error(
+                failedResults
+                  .map((r) => (r.status === 'rejected' ? r.reason : 'unknown'))
+                  .join('; '),
+              ),
+              {
+                userId,
+                failedCount: failedResults.length,
+              } as LogContext,
+            );
+          }
+        } else {
           this.loggingService.logInfo(
-            'Old profile pictures cleaned up from ImageKit',
+            'No files to delete (all files excluded)',
             {
               userId,
-              deletedCount,
-              totalFound: filesToDelete.length,
               excludedFile: excludeFileName,
+              totalFilesFound: files.length,
             } as LogContext,
           );
         }
+      } else {
+        this.loggingService.logInfo('No profile pictures found for cleanup', {
+          userId,
+          searchQuery: `name:${userId}_avatar*`,
+        } as LogContext);
       }
     } catch (error) {
       this.loggingService.logError(
